@@ -1,0 +1,55 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-default",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}/",
+      "hidden": true
+    },
+    {
+      "name": "emscripten-default",
+      "hidden": true,
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_C_ABI_COMPILED": "ON",
+        "CMAKE_CXX_ABI_COMPILED": "ON",
+        "CMAKE_CROSSCOMPILING": "ON"
+      }
+    },
+    {
+      "name": "ninja-debug",
+      "inherits": [ "ninja-default" ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "ninja-release",
+      "inherits": [ "ninja-default" ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "emscripten-ninja-debug",
+      "inherits": [ "ninja-debug", "emscripten-default" ]
+    },
+    {
+      "name": "emscripten-ninja-release",
+      "inherits": [ "ninja-release", "emscripten-default" ]
+    }
+  ],
+  "buildPresets": [
+    { "name": "ninja-debug", "configurePreset": "ninja-debug" },
+    { "name": "ninja-release", "configurePreset": "ninja-release" },
+    { "name": "emscripten-ninja-debug", "configurePreset": "emscripten-ninja-debug" },
+    { "name": "emscripten-ninja-release", "configurePreset": "emscripten-ninja-release" }
+  ]
+}
+
