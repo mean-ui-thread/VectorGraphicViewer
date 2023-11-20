@@ -13,13 +13,9 @@
 #include "AttributeInfo.h"
 #include "Shader.h"
 
-struct ShaderProgram
-{
-    GLuint handle = 0;
-    std::vector<AttributeInfo> attributes;
-    std::vector<GLint> attributeLocations;
-    std::vector<size_t> attributeOffsets;
-    GLint vertexSize = 0;
+class ShaderProgram {
+
+public:
 
     ShaderProgram(const std::vector<AttributeInfo> &attributes);
 
@@ -33,18 +29,18 @@ struct ShaderProgram
 
     inline void bind()
     {
-        glUseProgram(handle);
-        for(size_t i = 0; i < attributeLocations.size(); ++i)
+        glUseProgram(m_handle);
+        for(size_t i = 0; i < m_attributeLocations.size(); ++i)
         {
-            glEnableVertexAttribArray(attributeLocations[i]);
+            glEnableVertexAttribArray(m_attributeLocations[i]);
         }
     }
 
     inline void unbind()
     {
-        for(size_t i = 0; i < attributeLocations.size(); ++i)
+        for(size_t i = 0; i < m_attributeLocations.size(); ++i)
         {
-            glDisableVertexAttribArray(attributeLocations[i]);
+            glDisableVertexAttribArray(m_attributeLocations[i]);
         }
         glUseProgram(0);
     }
@@ -159,6 +155,39 @@ struct ShaderProgram
     {
         glUniformMatrix4fv(uniformLocation, (GLsizei)values.size(), GL_FALSE, glm::value_ptr(values.front()));
     }
+
+    inline const std::vector<AttributeInfo> &attributes() const {
+        return m_attributes;
+    }
+
+    inline const AttributeInfo &attribute(size_t index) const {
+        return m_attributes[index];
+    }
+
+    inline const std::vector<GLint> &attributeLocations() const {
+        return m_attributeLocations;
+    }
+
+    inline const std::vector<size_t> &attributeOffsets() const {
+        return m_attributeOffsets;
+    }
+
+    inline size_t attributeOffset(size_t index) const {
+        return m_attributeOffsets[index];
+    }
+
+    inline GLint vertexSize() const {
+        return m_vertexSize;
+    }
+
+private:
+
+    GLuint m_handle = 0;
+    std::vector<AttributeInfo> m_attributes;
+    std::vector<GLint> m_attributeLocations;
+    std::vector<size_t> m_attributeOffsets;
+    GLint m_vertexSize = 0;
+
 };
 
 #endif // SHADERPROGRAM_H

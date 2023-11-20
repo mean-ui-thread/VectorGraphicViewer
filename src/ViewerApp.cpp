@@ -1,54 +1,62 @@
 
 #include "ViewerApp.h"
 
+#include <cassert>
+#include <chrono>
 #include <iostream>
 
-#include "imgui.h"
-#include "imgui_impl_sdl.h"
-#include "imgui_impl_opengl3.h"
+#include <imgui.h>
+#include <imgui_impl_sdl2.h>
+#include <imgui_impl_opengl3.h>
+#include <implot.h>
 
-#include "Example.h"
+#include "AbstractSample.h"
 #include "ShaderProgram.h"
 
+static constexpr size_t SAMPLE_COUNT = 2000;
 
+ViewerApp::ViewerApp(std::vector<std::shared_ptr<AbstractSample> > samples): 
+    m_samples(samples),
+    m_frameStats(SAMPLE_COUNT),
+    m_cpuStats(SAMPLE_COUNT),
+    m_memStats(SAMPLE_COUNT)
 
-ViewerApp::ViewerApp(std::vector<std::shared_ptr<Example>> examples)
-: examples(examples) {
-    assert(examples.size() > 0);
+{
+    assert(m_samples.size() > 0);
 }
 
 ViewerApp::~ViewerApp()
 {
-    if (context)
+    if (m_context)
     {
-        SDL_GL_DeleteContext(context);
-        context = NULL;
+        SDL_GL_DeleteContext(m_context);
+        m_context = NULL;
     }
 
-    if (window)
+    if (m_window)
     {
-        SDL_DestroyWindow(window);
-        window = NULL;
+        SDL_DestroyWindow(m_window);
+        m_window = NULL;
     }
 
     IMG_Quit();
     SDL_Quit();
 }
 
-int ViewerApp::setup(const char * title, int32_t width, int32_t height)
+bool ViewerApp::setup(const char * title, int32_t width, int32_t height)
 {
     //Initialize SDL2
     if(SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         SDL_LogCritical(0, "SDL could not initialize: %s", SDL_GetError());
-        return -1;
+        return false;
     }
 
     //Initialize SDL Image
     if (!IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG))
     {
         SDL_LogCritical(0, "SDL Image could not initialize: %s", IMG_GetError());
-        return -1;
+        return false;
     }
 
 #ifndef __EMSCRIPTEN__
@@ -73,21 +81,21 @@ int ViewerApp::setup(const char * title, int32_t width, int32_t height)
 #endif
 
     // Create SDL Window
-    window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-    if(!window)
+    m_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    if(!m_window)
     {
         SDL_LogCritical(0, "Window creation error: %s", SDL_GetError());
-        return -1;
+        return false;
     }
 
     // Create GL Context
-    context = SDL_GL_CreateContext(window);
-    if (!context)
+    m_context = SDL_GL_CreateContext(m_window);
+    if (!m_context)
     {
         SDL_LogCritical(0, "GL context creation error: %s", SDL_GetError());
-        SDL_DestroyWindow(window);
-        window = NULL;
-        return -1;
+        SDL_DestroyWindow(m_window);
+        m_window = NULL;
+        return false;
     }
 
     //Initialize GLAD
@@ -99,18 +107,18 @@ int ViewerApp::setup(const char * title, int32_t width, int32_t height)
     {
         SDL_LogCritical(0,"Error initializing GLAD!");
 
-        SDL_GL_DeleteContext(context);
-        context = NULL;
+        SDL_GL_DeleteContext(m_context);
+        m_context = NULL;
 
-        SDL_DestroyWindow(window);
-        window = NULL;
+        SDL_DestroyWindow(m_window);
+        m_window = NULL;
 
-        return -1;
+        return false;
     }
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    ImGuiContext * imguiCtx = ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
@@ -120,13 +128,15 @@ int ViewerApp::setup(const char * title, int32_t width, int32_t height)
     //ImGui::StyleColorsClassic();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplSDL2_InitForOpenGL(window, context);
+    ImGui_ImplSDL2_InitForOpenGL(m_window, m_context);
     ImGui_ImplOpenGL3_Init(NULL);
+
+    ImPlot::CreateContext();
 
 #ifndef __EMSCRIPTEN__
     //Default Vertex Array Object
-    glGenVertexArrays(1, &defaultVAO);
-    glBindVertexArray(defaultVAO);
+    glGenVertexArrays(1, &m_defaultVAO);
+    glBindVertexArray(m_defaultVAO);
 #endif
 
 #if 1
@@ -148,85 +158,164 @@ int ViewerApp::setup(const char * title, int32_t width, int32_t height)
 
     // populate displayWidth and displayHeight before the user's init()
     // so the user can use these variables if needed.
-    SDL_GL_GetDrawableSize(window, &displayWidth, &displayHeight);
+    SDL_GL_GetDrawableSize(m_window, &m_displayWidth, &m_displayHeight);
 
     // User Init
-    for(size_t i = 0; i < examples.size(); ++i) {
-        if (!examples[i]->setup())
-        {
-            SDL_GL_DeleteContext(context);
-            context = NULL;
+    if (!m_samples[m_sampleCurrent]->setup())
+    {
+        SDL_GL_DeleteContext(m_context);
+        m_context = NULL;
 
-            SDL_DestroyWindow(window);
-            window = NULL;
+        SDL_DestroyWindow(m_window);
+        m_window = NULL;
 
-            return -1;
-        }
+        return false;
     }
 
 
-    // Our state
-    clearColor = glm::vec4(0.45f, 0.55f, 0.60f, 1.00f);
-    isRunning = true;
-    return 0;
+    m_isRunning = true;
+
+    return true;
 }
 
 void ViewerApp::step()
 {
-    auto frameStartTime = std::chrono::high_resolution_clock::now();
+    double frameTimeSecs = getTimeSecs();
 
     SDL_Event e;
     while (SDL_PollEvent(&e) != 0) {
         // User requests quit
         if (e.type == SDL_QUIT) {
-            isRunning = false;
+            m_isRunning = false;
         }
 
         ImGui_ImplSDL2_ProcessEvent(&e);
     }
 
-    SDL_GL_GetDrawableSize(window, &displayWidth, &displayHeight);
-    glViewport(0, 0, displayWidth, displayHeight);
-    glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    SDL_GL_GetDrawableSize(m_window, &m_displayWidth, &m_displayHeight);
+    glViewport(0, 0, m_displayWidth, m_displayHeight);
+    glClearColor(m_clearColor.r, m_clearColor.g, m_clearColor.b, m_clearColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    examples[exampleIndex]->render(shared_from_this());
+    float fieldOfViewRad = glm::radians(45.0f);
+    float cameraDistance = ((float)m_displayHeight/2.0f) / tan(fieldOfViewRad/2.0f);
+    float aspectRatio = (float)m_displayWidth / (float)m_displayHeight;
+
+    glm::mat4 projectionMatrix = glm::perspective(fieldOfViewRad, aspectRatio, 0.1f, cameraDistance+512.0f);
+    projectionMatrix = glm::rotate(projectionMatrix, glm::radians(180.0f), glm::vec3(1, 0, 0));
+    projectionMatrix = glm::translate(projectionMatrix, glm::vec3(-m_displayWidth*0.5f, -m_displayHeight*0.5f, cameraDistance));
+
+    glm::mat4 modelMatrix  = glm::translate(glm::identity<glm::mat4>(), position);
+    modelMatrix *= glm::yawPitchRoll(glm::radians(rotation.y), glm::radians(rotation.x), glm::radians(rotation.z));
+    modelMatrix  = glm::scale(modelMatrix, scale);
+    modelMatrix  = glm::translate(modelMatrix, -anchorPoint);
+
+    glm::mat4 mvp = projectionMatrix * modelMatrix;
+
+    // Switch sample if necessary
+    if (m_sampleCurrent != m_sampleSelected) {
+        m_samples[m_sampleCurrent]->teardown();
+        m_sampleCurrent = m_sampleSelected;
+        m_samples[m_sampleCurrent]->setup();
+    }
+
+
+    m_samples[m_sampleCurrent]->render(mvp);
 
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplSDL2_NewFrame(window);
+    ImGui_ImplSDL2_NewFrame(m_window);
     ImGui::NewFrame();
+
     ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImVec2(480.0f, 640.0f), ImGuiCond_Once);
-    ImGui::Begin(examples[exampleIndex]->name.c_str());
 
-    char frameTextOverlay[256];
-    snprintf(frameTextOverlay, sizeof(frameTextOverlay), "Avg: %.1fms, %.1f FPS", frameStats.m_avg, 1000.0f/frameStats.m_avg);
+    if (ImGui::Begin(m_samples[m_sampleCurrent]->name().c_str())) {
 
-    ImGui::PlotHistogram(
-        "Frame", frameStats.m_values, SampleData::SAMPLE_COUNT,
-        frameStats.m_offset, frameTextOverlay, 0.0f, 100.0f,
-        ImVec2((float)SampleData::SAMPLE_COUNT, 45.0f));
+        if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_FittingPolicyScroll)) {
+            for (size_t i = 0; i < m_samples.size(); ++i) {
+                if (ImGui::BeginTabItem(m_samples[i]->name().c_str())) {
+                    m_sampleSelected = i;
+                    ImGui::EndTabItem();
+                }
+            }
+            ImGui::EndTabBar();
+        }
 
-    examples[exampleIndex]->renderUI(shared_from_this());
+        renderPerformanceMonitorUI(frameTimeSecs);
 
-    ImGui::End();
+        ImGui::SliderFloat("Translate X", &position.x, -m_displayWidth, m_displayWidth);
+        ImGui::SliderFloat("Translate Y", &position.y, -m_displayHeight, m_displayHeight);
+        ImGui::SliderFloat("Translate Z", &position.z, -8000.0f, 8000.0f);
+        ImGui::SliderFloat("Rotate X", &rotation.x, 0, 360);
+        ImGui::SliderFloat("Rotate Y", &rotation.y, 0, 360);
+        ImGui::SliderFloat("Rotate Z", &rotation.z, 0, 360);
+        ImGui::SliderFloat("Scale X", &scale.x, -2, 4);
+        ImGui::SliderFloat("Scale Y", &scale.y, -2, 4);
+        ImGui::SliderFloat("Center X", &anchorPoint.x, 0, 512);
+        ImGui::SliderFloat("Center Y", &anchorPoint.y, 0, 512);
+        ImGui::SliderFloat("Center Z", &anchorPoint.z, 0, 512);
+
+        m_samples[m_sampleCurrent]->renderUI();
+
+        ImGui::End();
+    }
+
+    bool show = true;
+    ImGui::ShowDemoWindow(&show);
+    // ImPlot::ShowDemoWindow(&show);
+
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    SDL_GL_SwapWindow(window);
+    // Should be gotten before calling SDL_GL_SwapWindow since this function
+    // puts the CPU to sleep when V-SYNC is turned on. Capturing the CPU usage
+    // before that function call makes more sense.
+    m_cpuStats.addPoint(frameTimeSecs, m_cpuUsage.getValuePercent());
 
-    auto frameEndTime = std::chrono::high_resolution_clock::now();
-    frameStats.pushSample(float(std::chrono::duration_cast<std::chrono::microseconds>(frameEndTime-frameStartTime).count() / 1000.0f) );
+    SDL_GL_SwapWindow(m_window);
+
+    // calculate how long the frame took to render.
+    double lastFrameDurationSecs = getTimeSecs() - frameTimeSecs;
+
+    m_frameStats.addPoint(frameTimeSecs, lastFrameDurationSecs * 1000.0f); // from seconds to milliseconds
+    m_memStats.addPoint(frameTimeSecs, m_memUsage.getValueKB() / 1024.0f); // from KB to MB.
+}
+
+void ViewerApp::renderPerformanceMonitorUI(double frameTimeSecs)
+{
+    if (ImPlot::BeginPlot("##Performance Monitor", ImVec2(-1, 256)))
+    {
+        static ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels;
+        ImPlot::SetupAxis(ImAxis_X1, nullptr, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoSideSwitch);
+        ImPlot::SetupAxis(ImAxis_Y1, nullptr, ImPlotAxisFlags_AuxDefault | ImPlotAxisFlags_NoSideSwitch);
+        ImPlot::SetupAxis(ImAxis_Y2, nullptr, ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_NoSideSwitch);
+        ImPlot::SetupAxis(ImAxis_Y3, nullptr, ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_NoSideSwitch);
+        ImPlot::SetupAxisLimits(ImAxis_X1, frameTimeSecs - 10.0f, frameTimeSecs, ImGuiCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 100);
+        ImPlot::SetupAxisLimits(ImAxis_Y2, 0, 100);
+        ImPlot::SetupAxisLimits(ImAxis_Y3, 0, 100);
+
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+        ImPlot::PlotLine("Frame time (ms)", &m_frameStats.data[0].x, &m_frameStats.data[0].y, m_frameStats.data.size(), ImPlotLineFlags_None, m_frameStats.offset, sizeof(glm::vec2));
+
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+        ImPlot::PlotLine("CPU Usage (%)", &m_cpuStats.data[0].x, &m_cpuStats.data[0].y, m_cpuStats.data.size(), ImPlotLineFlags_None, m_cpuStats.offset, sizeof(glm::vec2));
+
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
+        ImPlot::PlotLine("Mem Usage (MB)", &m_memStats.data[0].x, &m_memStats.data[0].y, m_memStats.data.size(), ImPlotLineFlags_None, m_memStats.offset, sizeof(glm::vec2));
+
+        ImPlot::EndPlot();
+    }
 }
 
 void ViewerApp::teardown()
 {
-    examples.clear();
+    m_samples.clear();
 
     glBindVertexArray(0);
-    glDeleteVertexArrays(1, &defaultVAO);
-    defaultVAO = 0;
+    glDeleteVertexArrays(1, &m_defaultVAO);
+    m_defaultVAO = 0;
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();

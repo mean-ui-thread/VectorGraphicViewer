@@ -7,10 +7,14 @@
 
 #include "ViewerApp.h"
 
-#include "Example01_Texture.h"
+#include "Sample00_Welcome.h"
+#include "Sample01_Texture.h"
 
-auto app = std::make_shared<ViewerApp>(std::vector<std::shared_ptr<Example>>({
-    std::make_shared<Example01_Texture>()
+#define SAMPLE(NAME) std::make_shared<NAME>(#NAME)
+
+auto app = std::make_shared<ViewerApp>(std::vector<std::shared_ptr<AbstractSample>>({
+    SAMPLE(Sample00_Welcome),
+    SAMPLE(Sample01_Texture)
 }));
 
 void step() {
@@ -19,12 +23,12 @@ void step() {
 
 int main(int argc, char *argv[])
 {
-    if (app->setup("VectorGraphicViewer", 1280, 960) == 0)
+    if (app->setup("VectorGraphicViewer", 1280, 960))
     {
 #ifdef __EMSCRIPTEN__
         emscripten_set_main_loop(step, 0, 1);
 #else
-        while(app->isRunning)
+        while(app->isRunning())
         {
             step();
         }

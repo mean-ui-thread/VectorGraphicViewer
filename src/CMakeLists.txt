@@ -16,11 +16,35 @@ hunter_add_package(glm)
 find_package(glm REQUIRED)
 
 add_executable(${PROJECT_NAME} WIN32
+
+    AbstractSample.h
+    AttributeInfo.h
+    CPUUsage.cpp
+    CPUUsage.h
+    main.cpp
+    MemoryUsage.cpp
+    MemoryUsage.h
+    Sample00_Welcome.cpp
+    Sample00_Welcome.h
+    Sample01_Texture.cpp
+    Sample01_Texture.h
+    SampleData.h
+    Shader.cpp
+    Shader.h
+    ShaderProgram.cpp
+    ShaderProgram.h
+    Texture.cpp
+    Texture.h
+    VertexBuffer.h
+    ViewerApp.cpp
+    ViewerApp.h
+
+    # Third party sources
+    glad/src/glad.c
     imgui/backends/imgui_impl_opengl3.cpp
     imgui/backends/imgui_impl_opengl3.h
-    imgui/backends/imgui_impl_sdl.cpp
-    imgui/backends/imgui_impl_sdl.h
-    imgui/backends/imgui_impl_sdl.h
+    imgui/backends/imgui_impl_sdl2.cpp
+    imgui/backends/imgui_impl_sdl2.h
     imgui/imconfig.h
     imgui/imgui_demo.cpp
     imgui/imgui_draw.cpp
@@ -32,22 +56,12 @@ add_executable(${PROJECT_NAME} WIN32
     imgui/imstb_rectpack.h
     imgui/imstb_textedit.h
     imgui/imstb_truetype.h
-    glad/src/glad.c
-    AttributeInfo.h
-    main.cpp
-    Example.h
-    Example01_Texture.cpp
-    Example01_Texture.h
-    SampleData.h
-    Shader.cpp
-    Shader.h
-    ShaderProgram.cpp
-    ShaderProgram.h
-    Texture.cpp
-    Texture.h
-    VertexBuffer.h
-    ViewerApp.cpp
-    ViewerApp.h
+    implot/implot_demo.cpp
+    implot/implot_internal.h
+    implot/implot_items.cpp
+    implot/implot.cpp
+    implot/implot.h
+
 )
 
 copy_asset(${PROJECT_NAME} assets/background.jpg)
@@ -76,9 +90,10 @@ if(APPLE)
     )
 endif()
 
-target_include_directories(${PROJECT_NAME}
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/imgui
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
+    ${CMAKE_CURRENT_SOURCE_DIR}/implot
     ${CMAKE_CURRENT_SOURCE_DIR}/glad/include
 )
 
@@ -98,8 +113,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL Emscripten)
         --preload-file ${PROJECT_BINARY_DIR}/assets@./assets
     )
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
-
-
 
 else()
     target_link_libraries(${PROJECT_NAME}

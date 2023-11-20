@@ -6,10 +6,9 @@
 
 #include <glad/glad.h>
 
-struct AttributeInfo
-{
-    enum Type
-    {
+struct AttributeInfo {
+
+    enum Type {
         Byte          = GL_BYTE,
         UnsignedByte  = GL_UNSIGNED_BYTE,
         Short         = GL_SHORT,
@@ -19,8 +18,7 @@ struct AttributeInfo
         Float         = GL_FLOAT
     };
 
-    inline GLint sizeOfType()
-    {
+    inline GLint sizeOfType() const {
         switch(type)
         {
         case Byte:          return sizeof(GLbyte);
@@ -35,10 +33,13 @@ struct AttributeInfo
         return 0;
     }
 
+    inline GLint size() const {
+        return count * sizeOfType();
+    }
+
     std::string name;
     Type type;
     GLint count;
-
 };
 
 #endif // ATTRIBUTEINFO_H

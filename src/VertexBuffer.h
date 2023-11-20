@@ -31,9 +31,12 @@ struct VertexBuffer
     {
         glBindBuffer(GL_ARRAY_BUFFER, handle);
 
-        for(size_t i = 0; i < program->attributeLocations.size(); ++i)
+        const std::vector<GLint> &attributeLocations = program->attributeLocations();
+        for(size_t i = 0; i < attributeLocations.size(); ++i)
         {
-            glVertexAttribPointer(program->attributeLocations[i], program->attributes[i].count, program->attributes[i].type, GL_FALSE, program->vertexSize,  reinterpret_cast<const GLvoid*>(program->attributeOffsets[i]));
+            const AttributeInfo &attribute = program->attribute(i);
+            size_t offset = program->attributeOffset(i);
+            glVertexAttribPointer(attributeLocations[i], attribute.count, attribute.type, GL_FALSE, program->vertexSize(),  reinterpret_cast<const GLvoid*>(offset));
         }
 
     }

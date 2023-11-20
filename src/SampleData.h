@@ -1,58 +1,41 @@
 #ifndef SAMPLE_DATA_H
 #define SAMPLE_DATA_H
 
-#include <algorithm>
-#include <cstdint>
-#include <cstring>
-#include <climits>
+#include <vector>
 
-struct SampleData
-{
-    static constexpr uint32_t SAMPLE_COUNT = 400;
+#include <glm/vec2.hpp>
 
-    inline SampleData()
+struct SampleData {
+
+    size_t maxSize;
+    size_t offset;
+    std::vector<glm::vec2> data;
+
+public:
+    SampleData(const size_t maxSize) :
+        maxSize(maxSize)
     {
-        reset();
+        offset = 0;
+        data.reserve(maxSize);
     }
 
-    inline void reset()
-    {
-        m_offset = 0;
-        memset(m_values, 0, sizeof(m_values) );
-
-        m_min = 0.0f;
-        m_max = 0.0f;
-        m_avg = 0.0f;
-    }
-
-    inline void pushSample(float value)
-    {
-        m_values[m_offset] = value;
-        m_offset = (m_offset+1) % SAMPLE_COUNT;
-
-        float min = FLT_MAX;
-        float max = 0.0f;
-        float avg = 0.0f;
-
-        for (uint32_t i = 0; i < SAMPLE_COUNT; ++i)
-        {
-            const float val = m_values[i];
-            min  = std::min(min, val);
-            max  = std::max(max, val);
-            avg += val;
+    inline void clear() {
+        if (data.size() > 0) {
+            data.clear();
+            offset = 0;
         }
-
-        m_min = min;
-        m_max = max;
-        m_avg = avg / SAMPLE_COUNT;
     }
 
-    int32_t m_offset;
-    float m_values[SAMPLE_COUNT];
+    inline void addPoint(float x, float y) {
 
-    float m_min;
-    float m_max;
-    float m_avg;
+        if (data.size() < maxSize) {
+            data.push_back(glm::vec2(x, y));
+        } else {
+            data[offset] = glm::vec2(x, y);
+            offset = (offset + 1) % maxSize;
+        }
+    }
+
 };
 
 #endif // SAMPLE_DATA_H
