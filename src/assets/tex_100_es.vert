@@ -1,7 +1,6 @@
 #version 100
 
 precision highp float;
-precision highp int;
 
 attribute vec4 a_position;
 attribute vec4 a_texCoord0;

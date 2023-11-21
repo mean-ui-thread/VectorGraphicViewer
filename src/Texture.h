@@ -8,15 +8,25 @@
 
 struct Texture
 {
+    enum Filtering {
+        NoFiltering = 0,
+        BilinearFiltering,
+        TrilinearFiltering,
+        AnisotropicFiltering
+    };
+
     GLuint handle = 0;
     std::string filePath;
     int width = 0;
     int height = 0;
+    int filtering = NoFiltering;
 
     Texture(const std::string &filePath);
     ~Texture();
 
     int decode();
+
+    void setFiltering(Filtering filtering);
 
     inline void bind(GLuint textureSlot = 0)
     {

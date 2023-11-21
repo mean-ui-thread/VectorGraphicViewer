@@ -3,7 +3,11 @@
 
 #include <glm/glm.hpp>
 
-struct DefaultTextureVertex {
+struct PositionVertex {
+    glm::vec3 position;
+};
+
+struct TextureVertex {
     glm::vec3 position;
     glm::vec2 texCoord;
 };

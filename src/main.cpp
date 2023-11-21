@@ -23,7 +23,7 @@ void step() {
 
 int main(int argc, char *argv[])
 {
-    if (app->setup("VectorGraphicViewer", 1280, 960))
+    if (app->setup("VectorGraphicViewer", 1600, 900))
     {
 #ifdef __EMSCRIPTEN__
         emscripten_set_main_loop(step, 0, 1);

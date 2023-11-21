@@ -64,17 +64,21 @@ add_executable(${PROJECT_NAME} WIN32
 
 )
 
-copy_asset(${PROJECT_NAME} assets/background.jpg)
+copy_asset(${PROJECT_NAME} assets/android.png)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Emscripten)
     copy_asset(${PROJECT_NAME}
-        assets/default_100_es.frag
-        assets/default_100_es.vert
+        assets/color_100_es.frag
+        assets/color_100_es.vert
+        assets/tex_100_es.frag
+        assets/tex_100_es.vert
     )
 else()
     copy_asset(${PROJECT_NAME}
-        assets/default_330_core.frag
-        assets/default_330_core.vert
+        assets/color_330_core.frag
+        assets/color_330_core.vert
+        assets/tex_330_core.frag
+        assets/tex_330_core.vert
     )
 endif()
 

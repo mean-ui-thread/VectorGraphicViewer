@@ -5,6 +5,9 @@
 #include <string>
 
 #include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
+
+#include "ShaderProgram.h"
 
 class ViewerApp;
 
@@ -14,15 +17,17 @@ public:
     AbstractSample(const std::string &name) : m_name(name) {}
     virtual ~AbstractSample() {}
     virtual bool setup() = 0;
+    virtual void resetRenderState() = 0;
     virtual void teardown() = 0;
     virtual void render(const glm::mat4 &mvp) = 0;
-    virtual void renderVertices(const glm::mat4 &mvp) = 0;
-    virtual void renderTriangles(const glm::mat4 &mvp) = 0;
     virtual void renderUI() = 0;
+    virtual void animateVertices(double t) = 0;
+    virtual std::vector<glm::vec3> getVertices() const = 0;
 
     const std::string &name() const {
         return m_name;
     }
+
 
 private:
     std::string m_name;

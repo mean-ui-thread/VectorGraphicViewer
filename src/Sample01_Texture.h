@@ -13,28 +13,24 @@ class Sample01_Texture : public AbstractSample {
 public:
 
     inline Sample01_Texture(const std::string &name) : AbstractSample(name) {}
+    virtual void resetRenderState() override;
     virtual bool setup() override;
     virtual void teardown() override;
     virtual void render(const glm::mat4 &mvp) override;
-    virtual void renderVertices(const glm::mat4 &mvp) override;
-    virtual void renderTriangles(const glm::mat4 &mvp) override;
     virtual void renderUI() override;
+    virtual void animateVertices(double t) override;
+    virtual std::vector<glm::vec3> getVertices() const override;
 
 private:
     std::shared_ptr<ShaderProgram> program;
     std::shared_ptr<Texture> texture;
     std::shared_ptr<VertexBuffer> vbo;
 
-    std::vector<DefaultTextureVertex> vertices = {
-        //{   X       Y       Z  }  { S     T  }
-        { {  0.0f,   0.0f,   0.0f}, {0.0f, 0.0f} },
-        {   {0.0f, 600.0f,   0.0f}, {0.0f, 1.0f} },
-        { {800.0f,   0.0f,   0.0f}, {1.0f, 0.0f} },
-        { {800.0f, 600.0f,   0.0f}, {1.0f, 1.0f} },
-    };
+    GLint u_MVP = -1;
+    GLint u_texture0 = -1;
 
-    GLint u_MVP = 0;
-    GLint u_texture0 = 0;
+    std::vector<TextureVertex> vertices;
+    Texture::Filtering filtering;
 };
 
 #endif // EXAMPLE01_TEXTURE_H

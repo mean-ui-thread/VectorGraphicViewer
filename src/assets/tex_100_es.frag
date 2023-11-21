@@ -1,7 +1,6 @@
 #version 100
 
 precision highp float;
-precision highp int;
 
 uniform sampler2D u_texture0;
 varying vec4 v_texCoord0;

@@ -20,7 +20,6 @@ ViewerApp::ViewerApp(std::vector<std::shared_ptr<AbstractSample> > samples):
     m_frameStats(SAMPLE_COUNT),
     m_cpuStats(SAMPLE_COUNT),
     m_memStats(SAMPLE_COUNT)
-
 {
     assert(m_samples.size() > 0);
 }
@@ -172,10 +171,74 @@ bool ViewerApp::setup(const char * title, int32_t width, int32_t height)
         return false;
     }
 
+    #ifdef __EMSCRIPTEN__
+    Shader texVert("assets/color_100_es.vert");
+#else
+    Shader texVert("assets/color_330_core.vert");
+#endif
+
+    if (texVert.compile() != 0)
+    {
+        return false;
+    }
+
+#ifdef __EMSCRIPTEN__
+    Shader texFrag("assets/color_100_es.frag");
+#else
+    Shader texFrag("assets/color_330_core.frag");
+#endif
+    if (texFrag.compile() != 0)
+    {
+        return false;
+    }
+
+    debugProgram = std::make_shared<ShaderProgram>(std::vector<AttributeInfo>({
+        {"a_position", AttributeInfo::Float, 3}
+    }));
+    debugProgram->attach(&texVert);
+    debugProgram->attach(&texFrag);
+    if (debugProgram->link() != 0)
+    {
+        return false;
+    }
+
+    u_color = debugProgram->getUniformLocation("u_color");
+    if (u_color < 0) {
+        return false;
+    }
+
+    u_MVP = debugProgram->getUniformLocation("u_MVP");
+    if (u_MVP < 0) {
+        return false;
+    }
+
+    debugVbo = std::make_shared<VertexBuffer>();
+
+    glPointSize(16);
+    glLineWidth(8);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    resetRenderState();
 
     m_isRunning = true;
 
-    return true;
+    return m_isRunning;
+}
+
+void ViewerApp::teardown()
+{
+    m_samples.clear();
+
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &m_defaultVAO);
+    m_defaultVAO = 0;
+
+    // Cleanup
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
 }
 
 void ViewerApp::step()
@@ -201,72 +264,67 @@ void ViewerApp::step()
     float cameraDistance = ((float)m_displayHeight/2.0f) / tan(fieldOfViewRad/2.0f);
     float aspectRatio = (float)m_displayWidth / (float)m_displayHeight;
 
-    glm::mat4 projectionMatrix = glm::perspective(fieldOfViewRad, aspectRatio, 0.1f, cameraDistance+512.0f);
+    glm::mat4 projectionMatrix = glm::perspective(fieldOfViewRad, aspectRatio, 0.0001f, cameraDistance*2.0f);
     projectionMatrix = glm::rotate(projectionMatrix, glm::radians(180.0f), glm::vec3(1, 0, 0));
     projectionMatrix = glm::translate(projectionMatrix, glm::vec3(-m_displayWidth*0.5f, -m_displayHeight*0.5f, cameraDistance));
+
+    if (animateTransforms) {
+        position.x = m_displayWidth / 2.0f + cos(frameTimeSecs) * m_displayWidth / 16.0f;
+        position.y = m_displayHeight / 2.0f + sin(frameTimeSecs) * m_displayHeight / 16.0f;
+
+        position.z = sin(frameTimeSecs * 0.25f) * m_displayHeight;
+        rotation.z = sin(frameTimeSecs * 1.333f) * 360.0f;
+    }
+
+    if (animateVertices) {
+        m_samples[m_sampleCurrent]->animateVertices(frameTimeSecs);
+    }
 
     glm::mat4 modelMatrix  = glm::translate(glm::identity<glm::mat4>(), position);
     modelMatrix *= glm::yawPitchRoll(glm::radians(rotation.y), glm::radians(rotation.x), glm::radians(rotation.z));
     modelMatrix  = glm::scale(modelMatrix, scale);
-    modelMatrix  = glm::translate(modelMatrix, -anchorPoint);
 
-    glm::mat4 mvp = projectionMatrix * modelMatrix;
+    const glm::mat4 mvp = projectionMatrix * modelMatrix;
 
     // Switch sample if necessary
     if (m_sampleCurrent != m_sampleSelected) {
         m_samples[m_sampleCurrent]->teardown();
         m_sampleCurrent = m_sampleSelected;
         m_samples[m_sampleCurrent]->setup();
+        resetRenderState();
     }
 
+    if (renderSample) {
+        m_samples[m_sampleCurrent]->render(mvp);
+    }
 
-    m_samples[m_sampleCurrent]->render(mvp);
+    if (renderTriangles || renderVertices) {
+        std::vector<glm::vec3> debugPoints = m_samples[m_sampleCurrent]->getVertices();
 
-    // Start the Dear ImGui frame
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplSDL2_NewFrame(m_window);
-    ImGui::NewFrame();
+        if (debugPoints.size() > 0) {
+            debugVbo->upload(debugPoints, VertexBuffer::Stream);
 
-    ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(480.0f, 640.0f), ImGuiCond_Once);
-
-    if (ImGui::Begin(m_samples[m_sampleCurrent]->name().c_str())) {
-
-        if (ImGui::BeginTabBar("MyTabBar", ImGuiTabBarFlags_FittingPolicyScroll)) {
-            for (size_t i = 0; i < m_samples.size(); ++i) {
-                if (ImGui::BeginTabItem(m_samples[i]->name().c_str())) {
-                    m_sampleSelected = i;
-                    ImGui::EndTabItem();
+            debugProgram->bind();
+            debugProgram->setUniform(u_MVP, mvp);
+            debugProgram->setUniform(u_color, m_vertexColor);
+            debugVbo->bind(debugProgram);
+            if (renderTriangles) {
+                debugProgram->setUniform(u_color, m_lineColor);
+                for(size_t i = 0; i < debugPoints.size(); i += 3) {
+                    glDrawArrays(GL_LINE_LOOP, i, (GLsizei)3);
                 }
             }
-            ImGui::EndTabBar();
+            if (renderVertices) {
+                debugProgram->setUniform(u_color, m_vertexColor);
+                glDrawArrays(GL_POINTS, 0, (GLsizei)debugPoints.size());
+            }
+            debugVbo->unbind();
+            debugProgram->unbind();
+
         }
-
-        renderPerformanceMonitorUI(frameTimeSecs);
-
-        ImGui::SliderFloat("Translate X", &position.x, -m_displayWidth, m_displayWidth);
-        ImGui::SliderFloat("Translate Y", &position.y, -m_displayHeight, m_displayHeight);
-        ImGui::SliderFloat("Translate Z", &position.z, -8000.0f, 8000.0f);
-        ImGui::SliderFloat("Rotate X", &rotation.x, 0, 360);
-        ImGui::SliderFloat("Rotate Y", &rotation.y, 0, 360);
-        ImGui::SliderFloat("Rotate Z", &rotation.z, 0, 360);
-        ImGui::SliderFloat("Scale X", &scale.x, -2, 4);
-        ImGui::SliderFloat("Scale Y", &scale.y, -2, 4);
-        ImGui::SliderFloat("Center X", &anchorPoint.x, 0, 512);
-        ImGui::SliderFloat("Center Y", &anchorPoint.y, 0, 512);
-        ImGui::SliderFloat("Center Z", &anchorPoint.z, 0, 512);
-
-        m_samples[m_sampleCurrent]->renderUI();
-
-        ImGui::End();
     }
 
-    bool show = true;
-    ImGui::ShowDemoWindow(&show);
-    // ImPlot::ShowDemoWindow(&show);
-
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    renderUI(frameTimeSecs);
 
     // Should be gotten before calling SDL_GL_SwapWindow since this function
     // puts the CPU to sleep when V-SYNC is turned on. Capturing the CPU usage
@@ -280,6 +338,86 @@ void ViewerApp::step()
 
     m_frameStats.addPoint(frameTimeSecs, lastFrameDurationSecs * 1000.0f); // from seconds to milliseconds
     m_memStats.addPoint(frameTimeSecs, m_memUsage.getValueKB() / 1024.0f); // from KB to MB.
+}
+
+void ViewerApp::renderUI(double frameTimeSecs)
+{
+    // Start the Dear ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL2_NewFrame(m_window);
+    ImGui::NewFrame();
+
+    ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(480.0f, 640.0f), ImGuiCond_Once);
+
+    if (ImGui::Begin("Control Panel"))
+    {
+
+        if (ImGui::BeginTabBar("##SampleSelection", ImGuiTabBarFlags_FittingPolicyScroll))
+        {
+            for (size_t i = 0; i < m_samples.size(); ++i)
+            {
+                if (ImGui::BeginTabItem(m_samples[i]->name().c_str()))
+                {
+                    m_sampleSelected = i;
+                    ImGui::EndTabItem();
+                }
+            }
+            ImGui::EndTabBar();
+        }
+
+        renderPerformanceMonitorUI(frameTimeSecs);
+
+        if (ImGui::Button("Reset")) {
+            resetRenderState();
+        }
+
+        ImGui::Checkbox("Render Sample", &renderSample);
+        ImGui::SameLine();
+        ImGui::Checkbox("Render Triangles", &renderTriangles);
+        ImGui::SameLine();
+        ImGui::Checkbox("Render Vertices", &renderVertices);
+
+        ImGui::Checkbox("Animate Transforms", &animateTransforms);
+        ImGui::SameLine();
+        ImGui::Checkbox("Animate Vertices", &animateVertices);
+
+
+        ImGui::SliderFloat("Translate X", &position.x, -m_displayWidth, m_displayWidth);
+        ImGui::SliderFloat("Translate Y", &position.y, -m_displayHeight, m_displayHeight);
+        ImGui::SliderFloat("Translate Z", &position.z, -8000.0f, 8000.0f);
+        ImGui::SliderFloat("Rotate X", &rotation.x, -720, 720);
+        ImGui::SliderFloat("Rotate Y", &rotation.y, -720, 720);
+        ImGui::SliderFloat("Rotate Z", &rotation.z, -720, 720);
+        ImGui::SliderFloat("Scale X", &scale.x, -4, 4);
+        ImGui::SliderFloat("Scale Y", &scale.y, -4, 4);
+
+        m_samples[m_sampleCurrent]->renderUI();
+
+        ImGui::End();
+    }
+
+    // bool show = true;
+    // ImGui::ShowDemoWindow(&show);
+    // ImPlot::ShowDemoWindow(&show);
+
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void ViewerApp::resetRenderState()
+{
+    position = glm::vec3(m_displayWidth / 2.0f, m_displayHeight / 2.0f, 0.0f);
+    rotation = glm::vec3(0.0f);
+    scale = glm::vec3(1.0f);
+    renderSample = true;
+    renderTriangles = false;
+    renderVertices = false;
+
+    animateTransforms = false;
+    animateVertices = false;
+
+    m_samples[m_sampleCurrent]->resetRenderState();
 }
 
 void ViewerApp::renderPerformanceMonitorUI(double frameTimeSecs)
@@ -297,28 +435,14 @@ void ViewerApp::renderPerformanceMonitorUI(double frameTimeSecs)
         ImPlot::SetupAxisLimits(ImAxis_Y3, 0, 100);
 
         ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
-        ImPlot::PlotLine("Frame time (ms)", &m_frameStats.data[0].x, &m_frameStats.data[0].y, m_frameStats.data.size(), ImPlotLineFlags_None, m_frameStats.offset, sizeof(glm::vec2));
-
-        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
         ImPlot::PlotLine("CPU Usage (%)", &m_cpuStats.data[0].x, &m_cpuStats.data[0].y, m_cpuStats.data.size(), ImPlotLineFlags_None, m_cpuStats.offset, sizeof(glm::vec2));
 
-        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
         ImPlot::PlotLine("Mem Usage (MB)", &m_memStats.data[0].x, &m_memStats.data[0].y, m_memStats.data.size(), ImPlotLineFlags_None, m_memStats.offset, sizeof(glm::vec2));
+
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
+        ImPlot::PlotLine("Frame time (ms)", &m_frameStats.data[0].x, &m_frameStats.data[0].y, m_frameStats.data.size(), ImPlotLineFlags_None, m_frameStats.offset, sizeof(glm::vec2));
 
         ImPlot::EndPlot();
     }
-}
-
-void ViewerApp::teardown()
-{
-    m_samples.clear();
-
-    glBindVertexArray(0);
-    glDeleteVertexArrays(1, &m_defaultVAO);
-    m_defaultVAO = 0;
-
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
 }

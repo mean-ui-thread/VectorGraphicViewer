@@ -13,15 +13,13 @@ class Sample00_Welcome : public AbstractSample {
 public:
 
     inline Sample00_Welcome(const std::string &name) : AbstractSample(name) {}
+    virtual void resetRenderState() override;
     virtual bool setup() override;
     virtual void teardown() override;
     virtual void render(const glm::mat4 &mvp) override;
-    virtual void renderVertices(const glm::mat4 &mvp) override;
-    virtual void renderTriangles(const glm::mat4 &mvp) override;
     virtual void renderUI() override;
-
-private:
-
+    virtual void animateVertices(double t) override;
+    virtual std::vector<glm::vec3> getVertices() const override;
 
 };
 

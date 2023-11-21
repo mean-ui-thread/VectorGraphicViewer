@@ -14,6 +14,8 @@
 #include "CPUUsage.h"
 #include "MemoryUsage.h"
 #include "SampleData.h"
+#include "ShaderProgram.h"
+#include "VertexBuffer.h"
 
 class AbstractSample;
 
@@ -27,7 +29,11 @@ public:
 
     void step();
 
+    void renderUI(double frameTimeSecs);
+
     void teardown();
+
+    void resetRenderState();
 
     void renderPerformanceMonitorUI(double frameTimeSecs);
 
@@ -51,14 +57,19 @@ public:
 
 private:
 
-    glm::vec3 position = glm::vec3(640.0f, 480.0f, 0.0f);
-    glm::vec3 rotation = glm::vec3(0.0f);
-    glm::vec3 scale = glm::vec3(1.0f);
-    glm::vec3 anchorPoint = glm::vec3(400.0f, 300.0f, 0.0f);
+    std::shared_ptr<ShaderProgram> debugProgram;
+    std::shared_ptr<VertexBuffer> debugVbo;
+
+    GLint u_MVP = -1;
+    GLint u_color = -1;
+
+
 
     int32_t m_displayWidth = 0;
     int32_t m_displayHeight = 0;
-    glm::vec4 m_clearColor = glm::vec4(0.45f, 0.55f, 0.60f, 1.00f);
+    const glm::vec4 m_clearColor = glm::vec4(0.45f, 0.55f, 0.60f, 1.00f);
+    const glm::vec4 m_vertexColor = glm::vec4(1.0f, 0.0f, 0.5f, 1.0f);
+    const glm::vec4 m_lineColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     bool m_isRunning = false;
 
     SDL_Window* m_window = NULL;
@@ -77,6 +88,18 @@ private:
     SampleData m_frameStats;
     SampleData m_cpuStats;
     SampleData m_memStats;
+
+
+    glm::vec3 position;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+
+    bool renderSample;
+    bool renderTriangles;
+    bool renderVertices;
+
+    bool animateTransforms;
+    bool animateVertices;
 
 
 
