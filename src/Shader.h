@@ -9,23 +9,13 @@
 #include <glad/glad.h>
 #include <SDL2/SDL_log.h>
 
-class Shader {
+struct Shader {
 
-public:
     Shader(const std::string &filePath);
 
-    ~Shader();
-
-    int compile();
-
-    GLuint handle() const {
-        return m_handle;
-    }
-
-private:
-    GLuint m_handle = 0;
-    std::string m_filePath;
-
+    std::string ext;
+    std::string filePath;
+    std::string source;
 };
 
 #endif // SHADER_H

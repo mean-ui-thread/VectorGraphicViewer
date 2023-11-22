@@ -19,10 +19,10 @@ void Sample00_Welcome::renderUI() {
 
 }
 
-void Sample00_Welcome::animateVertices(double t) {
-
+std::vector<glm::vec3> Sample00_Welcome::getVertices() const {
+    return {};
 }
 
-std::vector<glm::vec3> Sample00_Welcome::getVertices() const{
-    return std::vector<glm::vec3>();
+std::vector<Triangle> Sample00_Welcome::getTriangles() const {
+    return {};
 }

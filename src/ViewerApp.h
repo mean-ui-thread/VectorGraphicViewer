@@ -9,7 +9,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <glad/glad.h>
-#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 #include "CPUUsage.h"
 #include "MemoryUsage.h"
@@ -57,14 +58,15 @@ public:
 
 private:
 
-    std::shared_ptr<ShaderProgram> debugProgram;
-    std::shared_ptr<VertexBuffer> debugVbo;
+    std::shared_ptr<ShaderProgram> m_debugProgram;
+    std::shared_ptr<VertexBuffer<glm::vec3> > m_debugVbo;
 
-    GLint u_MVP = -1;
-    GLint u_color = -1;
+    GLint m_u_MVP = -1;
+    GLint m_u_color = -1;
 
 
-
+    bool m_verticalSyncCurrent = false;
+    bool m_verticalSyncRequested = true;
     int32_t m_displayWidth = 0;
     int32_t m_displayHeight = 0;
     const glm::vec4 m_clearColor = glm::vec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -78,17 +80,21 @@ private:
 
     std::vector< std::shared_ptr<AbstractSample> > m_samples;
     size_t m_sampleCurrent = 0;
-    size_t m_sampleSelected = 0;
+    size_t m_sampleRequested = 0;
 
     CPUUsage m_cpuUsage;
     MemoryUsage m_memUsage;
 
     const std::chrono::time_point<std::chrono::high_resolution_clock> launchTime = std::chrono::high_resolution_clock::now();
+    double m_lastFrameDurationSecs = 0.0;
 
     SampleData m_frameStats;
     SampleData m_cpuStats;
     SampleData m_memStats;
+    SampleData m_gpuMemStats;
+    SampleData m_trigStats;
 
+    // render states:
 
     glm::vec3 position;
     glm::vec3 rotation;
@@ -99,9 +105,6 @@ private:
     bool renderVertices;
 
     bool animateTransforms;
-    bool animateVertices;
-
-
 
 };
 

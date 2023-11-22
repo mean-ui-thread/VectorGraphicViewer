@@ -18,8 +18,8 @@ public:
     virtual void teardown() override;
     virtual void render(const glm::mat4 &mvp) override;
     virtual void renderUI() override;
-    virtual void animateVertices(double t) override;
     virtual std::vector<glm::vec3> getVertices() const override;
+    virtual std::vector<Triangle> getTriangles() const override;
 
 };
 

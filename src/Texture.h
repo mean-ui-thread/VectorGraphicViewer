@@ -4,9 +4,9 @@
 #include <string>
 
 #include <glad/glad.h>
-#include <SDL2/SDL_image.h>
 
-struct Texture
+#include "AbstractGPUObject.h"
+struct Texture : public AbstractGPUObject
 {
     enum Filtering {
         NoFiltering = 0,
@@ -19,7 +19,7 @@ struct Texture
     std::string filePath;
     int width = 0;
     int height = 0;
-    int filtering = NoFiltering;
+    Filtering filtering = NoFiltering;
 
     Texture(const std::string &filePath);
     ~Texture();
@@ -27,6 +27,9 @@ struct Texture
     int decode();
 
     void setFiltering(Filtering filtering);
+
+    virtual size_t getMemoryUsage() const override;
+    virtual void renderUI() override;
 
     inline void bind(GLuint textureSlot = 0)
     {

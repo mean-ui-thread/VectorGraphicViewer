@@ -10,16 +10,19 @@
 #include <imgui_impl_opengl3.h>
 #include <implot.h>
 
+#include "AbstractGPUObject.h"
 #include "AbstractSample.h"
 #include "ShaderProgram.h"
 
-static constexpr size_t SAMPLE_COUNT = 2000;
+static constexpr size_t SAMPLE_COUNT = 300;
 
 ViewerApp::ViewerApp(std::vector<std::shared_ptr<AbstractSample> > samples): 
     m_samples(samples),
     m_frameStats(SAMPLE_COUNT),
     m_cpuStats(SAMPLE_COUNT),
-    m_memStats(SAMPLE_COUNT)
+    m_memStats(SAMPLE_COUNT),
+    m_gpuMemStats(SAMPLE_COUNT),
+    m_trigStats(SAMPLE_COUNT)
 {
     assert(m_samples.size() > 0);
 }
@@ -138,22 +141,6 @@ bool ViewerApp::setup(const char * title, int32_t width, int32_t height)
     glBindVertexArray(m_defaultVAO);
 #endif
 
-#if 1
-    // Try adaptive v-sync
-    if (SDL_GL_SetSwapInterval(-1) != 0)
-    {
-        SDL_LogWarn(0, "Enabling Adaptive V-Sync failed: %s", SDL_GetError());
-        // fallback to v-sync
-        if (SDL_GL_SetSwapInterval(1) != 0){
-            SDL_LogWarn(0, "Enabling V-sync failed: %s", SDL_GetError());
-        }
-    }
-#else
-    if (SDL_GL_SetSwapInterval(0) != 0)
-    {
-        SDL_LogWarn(0, "Disabling V-sync failed: %s", SDL_GetError());
-    }
-#endif
 
     // populate displayWidth and displayHeight before the user's init()
     // so the user can use these variables if needed.
@@ -171,54 +158,50 @@ bool ViewerApp::setup(const char * title, int32_t width, int32_t height)
         return false;
     }
 
-    #ifdef __EMSCRIPTEN__
-    Shader texVert("assets/color_100_es.vert");
-#else
-    Shader texVert("assets/color_330_core.vert");
-#endif
-
-    if (texVert.compile() != 0)
-    {
-        return false;
-    }
-
 #ifdef __EMSCRIPTEN__
+    Shader texVert("assets/color_100_es.vert");
     Shader texFrag("assets/color_100_es.frag");
 #else
+    Shader texVert("assets/color_330_core.vert");
     Shader texFrag("assets/color_330_core.frag");
 #endif
-    if (texFrag.compile() != 0)
-    {
-        return false;
-    }
 
-    debugProgram = std::make_shared<ShaderProgram>(std::vector<AttributeInfo>({
+    m_debugProgram = std::make_shared<ShaderProgram>("#debugProgram", std::vector<AttributeInfo>({
         {"a_position", AttributeInfo::Float, 3}
     }));
-    debugProgram->attach(&texVert);
-    debugProgram->attach(&texFrag);
-    if (debugProgram->link() != 0)
+
+    if (!m_debugProgram->attach(texVert)) {
+        return false;
+    }
+
+    if (!m_debugProgram->attach(texFrag)) {
+        return false;
+    }
+
+    if (!m_debugProgram->link())
     {
         return false;
     }
 
-    u_color = debugProgram->getUniformLocation("u_color");
-    if (u_color < 0) {
+    m_u_color = m_debugProgram->getUniformLocation("u_color");
+    if (m_u_color < 0) {
         return false;
     }
 
-    u_MVP = debugProgram->getUniformLocation("u_MVP");
-    if (u_MVP < 0) {
+    m_u_MVP = m_debugProgram->getUniformLocation("u_MVP");
+    if (m_u_MVP < 0) {
         return false;
     }
 
-    debugVbo = std::make_shared<VertexBuffer>();
+    m_debugVbo = std::make_shared<VertexBuffer<glm::vec3>>("#debugVBO");
 
-    glPointSize(16);
-    glLineWidth(8);
+    glPointSize(8);
+    glLineWidth(4);
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // don't multiply alpha because we are pre-multiplying our textures in Texture.cpp
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     resetRenderState();
 
@@ -271,13 +254,8 @@ void ViewerApp::step()
     if (animateTransforms) {
         position.x = m_displayWidth / 2.0f + cos(frameTimeSecs) * m_displayWidth / 16.0f;
         position.y = m_displayHeight / 2.0f + sin(frameTimeSecs) * m_displayHeight / 16.0f;
-
         position.z = sin(frameTimeSecs * 0.25f) * m_displayHeight;
-        rotation.z = sin(frameTimeSecs * 1.333f) * 360.0f;
-    }
-
-    if (animateVertices) {
-        m_samples[m_sampleCurrent]->animateVertices(frameTimeSecs);
+        rotation.z = sin(frameTimeSecs * 1.333f) * 60.0f;
     }
 
     glm::mat4 modelMatrix  = glm::translate(glm::identity<glm::mat4>(), position);
@@ -286,10 +264,31 @@ void ViewerApp::step()
 
     const glm::mat4 mvp = projectionMatrix * modelMatrix;
 
-    // Switch sample if necessary
-    if (m_sampleCurrent != m_sampleSelected) {
+    // Enable/Disable v-sync if requested
+    if (m_verticalSyncCurrent != m_verticalSyncRequested) {
+        if(m_verticalSyncRequested) {
+            // Try adaptive v-sync
+            if (SDL_GL_SetSwapInterval(-1) != 0)
+            {
+                SDL_LogWarn(0, "Enabling Adaptive V-Sync failed: %s", SDL_GetError());
+                // fallback to v-sync
+                if (SDL_GL_SetSwapInterval(1) != 0){
+                    SDL_LogWarn(0, "Enabling V-sync failed: %s", SDL_GetError());
+                }
+            }
+        } else {
+            if (SDL_GL_SetSwapInterval(0) != 0)
+            {
+                SDL_LogWarn(0, "Disabling V-sync failed: %s", SDL_GetError());
+            }
+        }
+        m_verticalSyncCurrent = m_verticalSyncRequested;
+    }
+
+    // Switch sample if requested
+    if (m_sampleCurrent != m_sampleRequested) {
         m_samples[m_sampleCurrent]->teardown();
-        m_sampleCurrent = m_sampleSelected;
+        m_sampleCurrent = m_sampleRequested;
         m_samples[m_sampleCurrent]->setup();
         resetRenderState();
     }
@@ -298,46 +297,80 @@ void ViewerApp::step()
         m_samples[m_sampleCurrent]->render(mvp);
     }
 
-    if (renderTriangles || renderVertices) {
-        std::vector<glm::vec3> debugPoints = m_samples[m_sampleCurrent]->getVertices();
+    if (renderTriangles) {
+        std::vector<Triangle> debugTriangles = m_samples[m_sampleCurrent]->getTriangles();
+        m_debugProgram->bind();
+        m_debugProgram->setUniform(m_u_MVP, mvp);
+        m_debugProgram->setUniform(m_u_color, m_vertexColor);
+        m_debugVbo->bind(m_debugProgram);
+        m_debugProgram->setUniform(m_u_color, m_lineColor);
+        for (size_t i = 0; i < debugTriangles.size(); ++i) {
+            m_debugVbo->upload(debugTriangles[i].points, VertexBuffer<glm::vec3>::Stream);
+            glDrawArrays(GL_LINE_LOOP, 0, debugTriangles[i].points.size());
+        }
+        m_debugVbo->unbind();
+        m_debugProgram->unbind();
+    }
 
-        if (debugPoints.size() > 0) {
-            debugVbo->upload(debugPoints, VertexBuffer::Stream);
-
-            debugProgram->bind();
-            debugProgram->setUniform(u_MVP, mvp);
-            debugProgram->setUniform(u_color, m_vertexColor);
-            debugVbo->bind(debugProgram);
-            if (renderTriangles) {
-                debugProgram->setUniform(u_color, m_lineColor);
-                for(size_t i = 0; i < debugPoints.size(); i += 3) {
-                    glDrawArrays(GL_LINE_LOOP, i, (GLsizei)3);
-                }
-            }
-            if (renderVertices) {
-                debugProgram->setUniform(u_color, m_vertexColor);
-                glDrawArrays(GL_POINTS, 0, (GLsizei)debugPoints.size());
-            }
-            debugVbo->unbind();
-            debugProgram->unbind();
+    if (renderVertices) {
+        std::vector<glm::vec3> debugVertices = m_samples[m_sampleCurrent]->getVertices();
+        if (debugVertices.size() > 0) {
+            m_debugVbo->upload(debugVertices, VertexBuffer<glm::vec3>::Stream);
+            m_debugProgram->bind();
+            m_debugProgram->setUniform(m_u_MVP, mvp);
+            m_debugProgram->setUniform(m_u_color, m_vertexColor);
+            m_debugVbo->bind(m_debugProgram);
+            m_debugProgram->setUniform(m_u_color, m_vertexColor);
+            glDrawArrays(GL_POINTS, 0, (GLsizei)debugVertices.size());
+            m_debugVbo->unbind();
+            m_debugProgram->unbind();
 
         }
     }
 
     renderUI(frameTimeSecs);
 
-    // Should be gotten before calling SDL_GL_SwapWindow since this function
-    // puts the CPU to sleep when V-SYNC is turned on. Capturing the CPU usage
-    // before that function call makes more sense.
-    m_cpuStats.addPoint(frameTimeSecs, m_cpuUsage.getValuePercent());
+    // simple protection to ensure that we only collect stats at around 60Hz in
+    // case our refresh rate is higher or in case v-sync is turned off.
+    // Otherwise we would need a larger cyclic sample buffer which will consume
+    // more memory and would take much longer to calculate min/max/avg, etc
+    static double statsTimeCounter = 1.0;
+    if (statsTimeCounter > 0.016) {
+        // Should be gotten before calling SDL_GL_SwapWindow since this function
+        // puts the CPU to sleep when V-SYNC is turned on. Capturing the CPU usage
+        // before that function call makes more sense.
+        m_cpuStats.addPoint(frameTimeSecs, m_cpuUsage.getValuePercent());
 
-    SDL_GL_SwapWindow(m_window);
+        SDL_GL_SwapWindow(m_window);
 
-    // calculate how long the frame took to render.
-    double lastFrameDurationSecs = getTimeSecs() - frameTimeSecs;
+        // calculate how long the frame took to render.
+        m_lastFrameDurationSecs = getTimeSecs() - frameTimeSecs;
 
-    m_frameStats.addPoint(frameTimeSecs, lastFrameDurationSecs * 1000.0f); // from seconds to milliseconds
-    m_memStats.addPoint(frameTimeSecs, m_memUsage.getValueKB() / 1024.0f); // from KB to MB.
+        m_frameStats.addPoint(frameTimeSecs, m_lastFrameDurationSecs * 1000.0f); // from seconds to milliseconds
+        m_memStats.addPoint(frameTimeSecs, m_memUsage.getValueKB() / 1024.0f); // from KB to MB.
+
+        size_t totalGPUMemUsage = 0;
+
+        auto it = AbstractGPUObject::registry.cbegin();
+        auto end = AbstractGPUObject::registry.cend();
+        while (it != end) {
+            totalGPUMemUsage += it->second->getMemoryUsage();
+            it++;
+        }
+        m_gpuMemStats.addPoint(frameTimeSecs, totalGPUMemUsage / 1024.0f); // from B to KB.
+
+        m_trigStats.addPoint(frameTimeSecs, m_samples[m_sampleCurrent]->getTriangles().size()); // from B to KB.
+
+        statsTimeCounter = 0.0;
+    } else {
+
+        SDL_GL_SwapWindow(m_window);
+
+        // calculate how long the frame took to render.
+        m_lastFrameDurationSecs = getTimeSecs() - frameTimeSecs;
+        statsTimeCounter += m_lastFrameDurationSecs;
+    }
+
 }
 
 void ViewerApp::renderUI(double frameTimeSecs)
@@ -348,10 +381,11 @@ void ViewerApp::renderUI(double frameTimeSecs)
     ImGui::NewFrame();
 
     ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(480.0f, 640.0f), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(480.0f, m_displayHeight -40.0f), ImGuiCond_Once);
 
     if (ImGui::Begin("Control Panel"))
     {
+        ImGui::Checkbox("V-Sync", &m_verticalSyncRequested);
 
         if (ImGui::BeginTabBar("##SampleSelection", ImGuiTabBarFlags_FittingPolicyScroll))
         {
@@ -359,14 +393,16 @@ void ViewerApp::renderUI(double frameTimeSecs)
             {
                 if (ImGui::BeginTabItem(m_samples[i]->name().c_str()))
                 {
-                    m_sampleSelected = i;
+                    m_sampleRequested = i;
                     ImGui::EndTabItem();
                 }
             }
-            ImGui::EndTabBar();
         }
+        ImGui::EndTabBar();
 
-        renderPerformanceMonitorUI(frameTimeSecs);
+        if (ImGui::CollapsingHeader("Performance Monitor", ImGuiTreeNodeFlags_CollapsingHeader | ImGuiTreeNodeFlags_DefaultOpen)) {
+            renderPerformanceMonitorUI(frameTimeSecs);
+        }
 
         if (ImGui::Button("Reset")) {
             resetRenderState();
@@ -379,26 +415,35 @@ void ViewerApp::renderUI(double frameTimeSecs)
         ImGui::Checkbox("Render Vertices", &renderVertices);
 
         ImGui::Checkbox("Animate Transforms", &animateTransforms);
-        ImGui::SameLine();
-        ImGui::Checkbox("Animate Vertices", &animateVertices);
+        if (ImGui::CollapsingHeader("Transforms", ImGuiTreeNodeFlags_CollapsingHeader)) {
+            ImGui::SliderFloat("Translate X", &position.x, -m_displayWidth, m_displayWidth);
+            ImGui::SliderFloat("Translate Y", &position.y, -m_displayHeight, m_displayHeight);
+            ImGui::SliderFloat("Translate Z", &position.z, -8000.0f, 8000.0f);
+            ImGui::SliderFloat("Rotate X", &rotation.x, -720, 720);
+            ImGui::SliderFloat("Rotate Y", &rotation.y, -720, 720);
+            ImGui::SliderFloat("Rotate Z", &rotation.z, -720, 720);
+            ImGui::SliderFloat("Scale X", &scale.x, -4, 4);
+            ImGui::SliderFloat("Scale Y", &scale.y, -4, 4);
+        }
 
-
-        ImGui::SliderFloat("Translate X", &position.x, -m_displayWidth, m_displayWidth);
-        ImGui::SliderFloat("Translate Y", &position.y, -m_displayHeight, m_displayHeight);
-        ImGui::SliderFloat("Translate Z", &position.z, -8000.0f, 8000.0f);
-        ImGui::SliderFloat("Rotate X", &rotation.x, -720, 720);
-        ImGui::SliderFloat("Rotate Y", &rotation.y, -720, 720);
-        ImGui::SliderFloat("Rotate Z", &rotation.z, -720, 720);
-        ImGui::SliderFloat("Scale X", &scale.x, -4, 4);
-        ImGui::SliderFloat("Scale Y", &scale.y, -4, 4);
+        if (ImGui::CollapsingHeader("GPU Objects", ImGuiTreeNodeFlags_CollapsingHeader)) {
+            auto it = AbstractGPUObject::registry.cbegin();
+            auto end = AbstractGPUObject::registry.cend();
+            while (it != end) {
+                ImGui::SeparatorText(it->first.c_str());
+                it->second->renderUI();   
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f),"Estimated memory usage: %s", it->second->getPrintableMemoryUsage().c_str());
+                it++;
+            }
+        }
 
         m_samples[m_sampleCurrent]->renderUI();
-
-        ImGui::End();
     }
 
-    // bool show = true;
-    // ImGui::ShowDemoWindow(&show);
+    ImGui::End();
+
+    //bool show = true;
+    //ImGui::ShowDemoWindow(&show);
     // ImPlot::ShowDemoWindow(&show);
 
     ImGui::Render();
@@ -415,34 +460,42 @@ void ViewerApp::resetRenderState()
     renderVertices = false;
 
     animateTransforms = false;
-    animateVertices = false;
 
     m_samples[m_sampleCurrent]->resetRenderState();
 }
 
 void ViewerApp::renderPerformanceMonitorUI(double frameTimeSecs)
 {
-    if (ImPlot::BeginPlot("##Performance Monitor", ImVec2(-1, 256)))
+    if (ImPlot::BeginPlot("##CPU Performance Scope", ImVec2(-1, 128)))
     {
         static ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels;
         ImPlot::SetupAxis(ImAxis_X1, nullptr, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoSideSwitch);
         ImPlot::SetupAxis(ImAxis_Y1, nullptr, ImPlotAxisFlags_AuxDefault | ImPlotAxisFlags_NoSideSwitch);
-        ImPlot::SetupAxis(ImAxis_Y2, nullptr, ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_NoSideSwitch);
-        ImPlot::SetupAxis(ImAxis_Y3, nullptr, ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_NoSideSwitch);
-        ImPlot::SetupAxisLimits(ImAxis_X1, frameTimeSecs - 10.0f, frameTimeSecs, ImGuiCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_X1, frameTimeSecs - 5.0, frameTimeSecs, ImPlotCond_Always);
         ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 100);
-        ImPlot::SetupAxisLimits(ImAxis_Y2, 0, 100);
-        ImPlot::SetupAxisLimits(ImAxis_Y3, 0, 100);
-
         ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
         ImPlot::PlotLine("CPU Usage (%)", &m_cpuStats.data[0].x, &m_cpuStats.data[0].y, m_cpuStats.data.size(), ImPlotLineFlags_None, m_cpuStats.offset, sizeof(glm::vec2));
-
-        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
         ImPlot::PlotLine("Mem Usage (MB)", &m_memStats.data[0].x, &m_memStats.data[0].y, m_memStats.data.size(), ImPlotLineFlags_None, m_memStats.offset, sizeof(glm::vec2));
-
-        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
         ImPlot::PlotLine("Frame time (ms)", &m_frameStats.data[0].x, &m_frameStats.data[0].y, m_frameStats.data.size(), ImPlotLineFlags_None, m_frameStats.offset, sizeof(glm::vec2));
+        ImPlot::EndPlot();
+    }
 
+    char progressBarText[32];
+    sprintf(progressBarText, "%d", (int)(std::floor(1000.0f / m_frameStats.avg + 0.5f)));
+    ImGui::ProgressBar(1.0f / m_frameStats.avg, ImVec2(0, 0), progressBarText);
+    ImGui::SameLine();
+    ImGui::Text("FPS");
+
+    if (ImPlot::BeginPlot("##GPU Performance Scope", ImVec2(-1, 128)))
+    {
+        static ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels;
+        ImPlot::SetupAxis(ImAxis_X1, nullptr, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoSideSwitch);
+        ImPlot::SetupAxis(ImAxis_Y1, nullptr, ImPlotAxisFlags_AuxDefault | ImPlotAxisFlags_NoSideSwitch);
+        ImPlot::SetupAxisLimits(ImAxis_X1, frameTimeSecs - 5.0, frameTimeSecs, ImPlotCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 1000);
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+        ImPlot::PlotLine("GPU Mem Usage (KB)", &m_gpuMemStats.data[0].x, &m_gpuMemStats.data[0].y, m_gpuMemStats.data.size(), ImPlotLineFlags_None, m_gpuMemStats.offset, sizeof(glm::vec2));
+        ImPlot::PlotLine("Triangle Count", &m_trigStats.data[0].x, &m_trigStats.data[0].y, m_trigStats.data.size(), ImPlotLineFlags_None, m_trigStats.offset, sizeof(glm::vec2));
         ImPlot::EndPlot();
     }
 }

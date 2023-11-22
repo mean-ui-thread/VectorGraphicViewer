@@ -10,22 +10,26 @@
 #include <iostream>
 #include <vector>
 
+#include "AbstractGPUObject.h"
 #include "AttributeInfo.h"
 #include "Shader.h"
 
-class ShaderProgram {
+class ShaderProgram : public AbstractGPUObject {
 
 public:
 
-    ShaderProgram(const std::vector<AttributeInfo> &attributes);
+    ShaderProgram(const std::string &name, const std::vector<AttributeInfo> &attributes);
 
     ~ShaderProgram();
 
-    void attach(Shader *shader);
+    bool attach(const Shader &shader);
 
-    int link();
+    bool link();
 
     GLint getUniformLocation(const char *uniformName);
+
+    virtual size_t getMemoryUsage() const override;
+    virtual void renderUI() override;
 
     inline void bind()
     {
@@ -183,6 +187,7 @@ public:
 private:
 
     GLuint m_handle = 0;
+    std::vector<Shader> m_shaders;
     std::vector<AttributeInfo> m_attributes;
     std::vector<GLint> m_attributeLocations;
     std::vector<size_t> m_attributeOffsets;

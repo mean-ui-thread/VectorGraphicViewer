@@ -76,6 +76,7 @@
     "utility": "cpp",
     "numbers": "cpp",
     "cinttypes": "cpp",
-    "cassert": "cpp"
+    "cassert": "cpp",
+    "map": "cpp"
   }
 }

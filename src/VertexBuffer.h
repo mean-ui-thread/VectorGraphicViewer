@@ -2,10 +2,15 @@
 #define VERTEXBUFFER_H
 
 #include <glad/glad.h>
+#include <imgui.h>
+#include <memory>
 
+#include "AbstractGPUObject.h"
 #include "ShaderProgram.h"
+#include "VertexData.h"
 
-struct VertexBuffer
+template<class Vertex>
+struct VertexBuffer : public AbstractGPUObject
 {
     enum Hint
     {
@@ -15,8 +20,10 @@ struct VertexBuffer
     };
 
     GLuint handle = 0;
+    std::vector<Vertex> vertices;
+    Hint hint;
 
-    inline VertexBuffer()
+    inline VertexBuffer(const std::string &name) : AbstractGPUObject(name)
     {
         glGenBuffers(1, &handle);
     }
@@ -46,13 +53,26 @@ struct VertexBuffer
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    template<typename Vertex>
     inline void upload(const std::vector<Vertex> &vertices, Hint hint)
     {
+        this->vertices = vertices;
+        this->hint = hint;
         glBindBuffer(GL_ARRAY_BUFFER, handle);
         glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertices.size(), vertices.data(), hint);
     }
 
+    inline virtual size_t getMemoryUsage() const override {
+        return sizeof(Vertex) * vertices.size();
+    }
+
+    inline virtual void renderUI() {
+        ImGui::SeparatorText(name.c_str());
+    }
 };
+
+
+template<>
+void VertexBuffer<TextureVertex>::renderUI();
+
 
 #endif // VERTEXBUFFER_H

@@ -1,8 +1,11 @@
 
 #include "ShaderProgram.h"
 
-ShaderProgram::ShaderProgram(const std::vector<AttributeInfo> &attributes) :
-        m_attributes(attributes)
+#include <imgui.h>
+
+ShaderProgram::ShaderProgram(const std::string &name, const std::vector<AttributeInfo> &attributes) :
+    AbstractGPUObject(name),
+    m_attributes(attributes)
 {
     m_attributeLocations.resize(attributes.size(), -1);
     m_attributeOffsets.resize(attributes.size(), 0);
@@ -18,12 +21,44 @@ ShaderProgram::~ShaderProgram()
     }
 }
 
-void ShaderProgram::attach(Shader *shader)
+bool ShaderProgram::attach(const Shader &shader)
 {
-    glAttachShader(m_handle, shader->handle());
+    GLuint shaderHandle;
+
+    if (shader.ext == "vert" || shader.ext == "vsh")
+    {
+        shaderHandle = glCreateShader(GL_VERTEX_SHADER);
+    }
+    else if (shader.ext == "frag" || shader.ext == "fsh")
+    {
+        shaderHandle = glCreateShader(GL_FRAGMENT_SHADER);
+    }
+
+    const char * rawSourceCode = shader.source.c_str();
+
+    glShaderSource(shaderHandle, 1, &rawSourceCode, NULL);
+    glCompileShader(shaderHandle);
+
+    GLint compileStatus;
+    glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &compileStatus);
+
+    if (!compileStatus)
+    {
+        GLchar infoLog[1024];
+        glGetShaderInfoLog(shaderHandle, sizeof(infoLog), NULL, infoLog);
+        SDL_LogCritical(0, "Could not compile %s : %s", shader.filePath.c_str(), infoLog);
+        return false;
+    }
+
+    glAttachShader(m_handle, shaderHandle);
+    glDeleteShader(shaderHandle);
+
+    m_shaders.push_back(shader);
+
+    return true;
 }
 
-int ShaderProgram::link()
+bool ShaderProgram::link()
 {
     glLinkProgram(m_handle);
 
@@ -34,7 +69,7 @@ int ShaderProgram::link()
         GLchar infoLog[1024];
         glGetProgramInfoLog(m_handle, sizeof(infoLog), NULL, infoLog);
         SDL_LogCritical(0, "Could not link shader program:\n%s", infoLog);
-        return -1;
+        return false;
     }
 
     m_vertexSize = 0;
@@ -52,7 +87,7 @@ int ShaderProgram::link()
     }
 
 
-    return 0;
+    return true;
 }
 
 GLint ShaderProgram::getUniformLocation(const char *uniformName)
@@ -63,4 +98,51 @@ GLint ShaderProgram::getUniformLocation(const char *uniformName)
         SDL_LogCritical(0, "Could not find uniform named \"%s\" in shader program.", uniformName);
     }
     return location;
+}
+
+size_t ShaderProgram::getMemoryUsage() const {
+    GLint binarySize = 0;
+    glGetProgramiv(m_handle, GL_PROGRAM_BINARY_LENGTH, &binarySize);
+    return binarySize;
+}
+
+void ShaderProgram::renderUI() {
+    for (size_t i = 0; i < m_shaders.size(); ++i) {
+
+        Shader &shader = m_shaders[i];
+
+        if(ImGui::TreeNode(shader.filePath.c_str())) {
+            if (ImGui::BeginTable(name.c_str(), 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg| ImGuiTableFlags_SizingStretchProp)) {
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth(0);
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "Type");
+                if (shader.ext == "vert" || shader.ext == "vsh")
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    char title[] = "Vertex Shader";
+                    ImGui::InputText("##vert", title, strlen(title), ImGuiInputTextFlags_ReadOnly);
+                }
+                else if (shader.ext == "frag" || shader.ext == "fsh")
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    char title[] = "Fragment Shader";
+                    ImGui::InputText("##frag", title, strlen(title), ImGuiInputTextFlags_ReadOnly);
+                }
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth(0);
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "Source");
+
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::InputTextMultiline("##source", (char*)shader.source.c_str(), shader.source.size(), ImVec2(-FLT_MIN, 0), ImGuiInputTextFlags_ReadOnly);
+
+                ImGui::EndTable();
+            }
+            ImGui::TreePop();
+        }
+
+    }
+
 }

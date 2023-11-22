@@ -17,10 +17,14 @@ find_package(glm REQUIRED)
 
 add_executable(${PROJECT_NAME} WIN32
 
+    AbstractGPUObject.cpp
+    AbstractGPUObject.h
     AbstractSample.h
     AttributeInfo.h
     CPUUsage.cpp
     CPUUsage.h
+    IndexBuffer.cpp
+    IndexBuffer.h
     main.cpp
     MemoryUsage.cpp
     MemoryUsage.h
@@ -35,6 +39,8 @@ add_executable(${PROJECT_NAME} WIN32
     ShaderProgram.h
     Texture.cpp
     Texture.h
+    Triangle.h
+    VertexBuffer.cpp
     VertexBuffer.h
     ViewerApp.cpp
     ViewerApp.h
