@@ -8,13 +8,15 @@
 #include "ViewerApp.h"
 
 #include "Sample00_Welcome.h"
-#include "Sample01_Texture.h"
+#include "Sample01_PNG.h"
+#include "Sample02_SVG_Trig.h"
 
 #define SAMPLE(NAME) std::make_shared<NAME>(#NAME)
 
 auto app = std::make_shared<ViewerApp>(std::vector<std::shared_ptr<AbstractSample>>({
-    SAMPLE(Sample00_Welcome),
-    SAMPLE(Sample01_Texture)
+    // SAMPLE(Sample00_Welcome),
+    // SAMPLE(Sample01_PNG),
+    SAMPLE(Sample02_SVG_Trig)
 }));
 
 void step() {

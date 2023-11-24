@@ -1,5 +1,5 @@
-#ifndef EXAMPLE01_TEXTURE_H
-#define EXAMPLE01_TEXTURE_H
+#ifndef SAMPLE01_PNG_H
+#define SAMPLE01_PNG_H
 
 #include "AbstractSample.h"
 #include "IndexBuffer.h"
@@ -8,11 +8,11 @@
 #include "VertexBuffer.h"
 #include "VertexData.h"
 
-class Sample01_Texture : public AbstractSample {
+class Sample01_PNG : public AbstractSample {
 
 public:
 
-    inline Sample01_Texture(const std::string &name) : AbstractSample(name) {}
+    inline Sample01_PNG(const std::string &name) : AbstractSample(name) {}
     virtual void resetRenderState() override;
     virtual bool setup() override;
     virtual void teardown() override;
@@ -26,9 +26,6 @@ private:
     std::shared_ptr<Texture> texture;
     std::shared_ptr<VertexBuffer<TextureVertex>> vbo;
     std::shared_ptr<IndexBuffer> ibo;
-
-    GLint u_MVP = -1;
-    GLint u_texture0 = -1;
 };
 
-#endif // EXAMPLE01_TEXTURE_H
+#endif // SAMPLE01_PNG_H

@@ -12,4 +12,9 @@ struct TextureVertex {
     glm::vec2 texCoord;
 };
 
+struct ColorVertex {
+    glm::vec3 position;
+    glm::vec4 color;
+};
+
 #endif // VERTEX_DATA_H

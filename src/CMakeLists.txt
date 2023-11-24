@@ -17,35 +17,44 @@ find_package(glm REQUIRED)
 
 add_executable(${PROJECT_NAME} WIN32
 
-    AbstractGPUObject.cpp
-    AbstractGPUObject.h
-    AbstractSample.h
-    AttributeInfo.h
-    CPUUsage.cpp
-    CPUUsage.h
-    IndexBuffer.cpp
-    IndexBuffer.h
     main.cpp
-    MemoryUsage.cpp
-    MemoryUsage.h
     Sample00_Welcome.cpp
     Sample00_Welcome.h
-    Sample01_Texture.cpp
-    Sample01_Texture.h
-    SampleData.h
-    Shader.cpp
-    Shader.h
-    ShaderProgram.cpp
-    ShaderProgram.h
-    Texture.cpp
-    Texture.h
-    Triangle.h
-    VertexBuffer.cpp
-    VertexBuffer.h
-    ViewerApp.cpp
-    ViewerApp.h
+    Sample01_PNG.cpp
+    Sample01_PNG.h
+    Sample02_SVG_Trig.cpp
+    Sample02_SVG_Trig.h
+
+
+    # utilities
+    utils/AbstractGPUObject.cpp
+    utils/AbstractGPUObject.h
+    utils/AbstractSample.h
+    utils/AttributeInfo.h
+    utils/BitMask.h
+    utils/CPUUsage.cpp
+    utils/CPUUsage.h
+    utils/IndexBuffer.cpp
+    utils/IndexBuffer.h
+    utils/MemoryUsage.cpp
+    utils/MemoryUsage.h
+    utils/SampleData.h
+    utils/Shader.cpp
+    utils/Shader.h
+    utils/ShaderProgram.cpp
+    utils/ShaderProgram.h
+    utils/Texture.cpp
+    utils/Texture.h
+    utils/Triangle.h
+    utils/VectorGraphic.cpp
+    utils/VectorGraphic.h
+    utils/VertexBuffer.cpp
+    utils/VertexBuffer.h
+    utils/ViewerApp.cpp
+    utils/ViewerApp.h
 
     # Third party sources
+    fast-poly2tri/MPE_fastpoly2tri.h
     glad/src/glad.c
     imgui/backends/imgui_impl_opengl3.cpp
     imgui/backends/imgui_impl_opengl3.h
@@ -101,10 +110,12 @@ if(APPLE)
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/fast-poly2tri
+    ${CMAKE_CURRENT_SOURCE_DIR}/glad/include
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/implot
-    ${CMAKE_CURRENT_SOURCE_DIR}/glad/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Emscripten)

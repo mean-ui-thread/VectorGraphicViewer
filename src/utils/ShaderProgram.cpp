@@ -86,6 +86,9 @@ bool ShaderProgram::link()
         m_vertexSize += m_attributes[i].size();
     }
 
+    u_color = getUniformLocation("u_color");
+    u_texture0 = getUniformLocation("u_texture0");
+    u_MVP = getUniformLocation("u_MVP");
 
     return true;
 }
@@ -93,10 +96,6 @@ bool ShaderProgram::link()
 GLint ShaderProgram::getUniformLocation(const char *uniformName)
 {
     GLint location = glGetUniformLocation(m_handle, uniformName);
-    if (location == -1)
-    {
-        SDL_LogCritical(0, "Could not find uniform named \"%s\" in shader program.", uniformName);
-    }
     return location;
 }
 

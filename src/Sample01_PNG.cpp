@@ -1,9 +1,9 @@
-#include "Sample01_Texture.h"
+#include "Sample01_PNG.h"
 
 #include <imgui.h>
 
 
-void Sample01_Texture::resetRenderState() {
+void Sample01_PNG::resetRenderState() {
 
     vbo->upload({
         //{   X       Y      Z  }  { S     T  }
@@ -22,7 +22,7 @@ void Sample01_Texture::resetRenderState() {
     texture->setFiltering(Texture::NoFiltering);
 }
 
-bool Sample01_Texture::setup()
+bool Sample01_PNG::setup()
 {
 #ifdef __EMSCRIPTEN__
     Shader texVert("assets/tex_100_es.vert");
@@ -32,7 +32,7 @@ bool Sample01_Texture::setup()
     Shader texFrag("assets/tex_330_core.frag");
 #endif
 
-    program = std::make_shared<ShaderProgram>("Android Texture Program", std::vector<AttributeInfo>({
+    program = std::make_shared<ShaderProgram>("Android PNG Texture Program", std::vector<AttributeInfo>({
         {"a_position", AttributeInfo::Float, 3},
         {"a_texCoord0", AttributeInfo::Float, 2},
     }));
@@ -50,45 +50,32 @@ bool Sample01_Texture::setup()
         return false;
     }
 
-    u_MVP = program->getUniformLocation("u_MVP");
-    if (u_MVP < 0) {
-        return false;
-    }
-
-    u_texture0 = program->getUniformLocation("u_texture0");
-    if (u_texture0 < 0) {
-        return false;
-    }
-
     texture = std::make_shared<Texture>("assets/android.png");
     if (texture->decode() != 0)
     {
         return false;
     }
 
-    vbo = std::make_shared<VertexBuffer<TextureVertex>>("Android VBO");
-    ibo = std::make_shared<IndexBuffer>("Android IBO");
+    vbo = std::make_shared<VertexBuffer<TextureVertex>>("Android PNG VBO");
+    ibo = std::make_shared<IndexBuffer>("Android PNG IBO");
 
     resetRenderState();
 
     return true;
 }
 
-void Sample01_Texture::teardown() {
+void Sample01_PNG::teardown() {
     program.reset();
     texture.reset();
     vbo.reset();
     ibo.reset();
-    u_MVP = -1;
-    u_texture0 = -1;
 }
 
-void Sample01_Texture::render(const glm::mat4 &mvp)
+void Sample01_PNG::render(const glm::mat4 &mvp)
 {
-    // Draw texture
     program->bind();
-    program->setUniform(u_texture0, 0);
-    program->setUniform(u_MVP, mvp);
+    program->setTexture0Slot(0);
+    program->setMVP(mvp);
     vbo->bind(program);
     ibo->bind();
     texture->bind();
@@ -99,11 +86,11 @@ void Sample01_Texture::render(const glm::mat4 &mvp)
     program->unbind();
 }
 
-void Sample01_Texture::renderUI() {
+void Sample01_PNG::renderUI() {
 }
 
 // for debug purpose. Doesn't really need to be optimized.
-std::vector<glm::vec3> Sample01_Texture::getVertices() const {
+std::vector<glm::vec3> Sample01_PNG::getVertices() const {
     std::vector<glm::vec3> result;
     result.reserve(vbo->vertices.size());
     for (size_t i = 0; i < vbo->vertices.size(); ++i) {
@@ -113,7 +100,7 @@ std::vector<glm::vec3> Sample01_Texture::getVertices() const {
 }
 
 // for debug purpose. Doesn't really need to be optimized.
-std::vector<Triangle> Sample01_Texture::getTriangles() const {
+std::vector<Triangle> Sample01_PNG::getTriangles() const {
     std::vector<Triangle> result;
     result.reserve(ibo->indices.size() / 3);
     for (size_t i = 0; i < ibo->indices.size(); i += 3)

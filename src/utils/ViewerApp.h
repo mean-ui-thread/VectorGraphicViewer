@@ -61,10 +61,6 @@ private:
     std::shared_ptr<ShaderProgram> m_debugProgram;
     std::shared_ptr<VertexBuffer<glm::vec3> > m_debugVbo;
 
-    GLint m_u_MVP = -1;
-    GLint m_u_color = -1;
-
-
     bool m_verticalSyncCurrent = false;
     bool m_verticalSyncRequested = true;
     int32_t m_displayWidth = 0;

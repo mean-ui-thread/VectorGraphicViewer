@@ -4,3 +4,6 @@
 [submodule "src/implot"]
 	path = src/implot
 	url = git@github.com:epezent/implot.git
+[submodule "src/fast-poly2tri"]
+	path = src/fast-poly2tri
+	url = git@github.com:MetricPanda/fast-poly2tri.git

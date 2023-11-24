@@ -1,5 +1,5 @@
-#ifndef EXAMPLE00_WELCOME_H
-#define EXAMPLE00_WELCOME_H
+#ifndef SAMPLE00_WELCOME_H
+#define SAMPLE00_WELCOME_H
 
 #include "AbstractSample.h"
 #include "VertexData.h"
@@ -23,4 +23,4 @@ public:
 
 };
 
-#endif // EXAMPLE00_WELCOME_H
+#endif // SAMPLE00_WELCOME_H

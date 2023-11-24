@@ -184,6 +184,24 @@ public:
         return m_vertexSize;
     }
 
+    // for convenience
+    inline void setColor(const glm::vec4 &color) {
+        assert(u_color != -1);
+        setUniform(u_color, color);
+    }
+
+    // for convenience
+    inline void setTexture0Slot(int slotId) {
+        assert(u_texture0 != -1);
+        setUniform(u_texture0, slotId);
+    }
+
+    // for convenience
+    inline void setMVP(const glm::mat4 &mvp) {
+        assert(u_MVP != -1);
+        setUniform(u_MVP, mvp);
+    }
+
 private:
 
     GLuint m_handle = 0;
@@ -192,6 +210,11 @@ private:
     std::vector<GLint> m_attributeLocations;
     std::vector<size_t> m_attributeOffsets;
     GLint m_vertexSize = 0;
+
+    GLint u_color = -1;
+    GLint u_texture0 = -1;
+    GLint u_MVP = -1;
+
 
 };
 

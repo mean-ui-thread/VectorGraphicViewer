@@ -183,20 +183,10 @@ bool ViewerApp::setup(const char * title, int32_t width, int32_t height)
         return false;
     }
 
-    m_u_color = m_debugProgram->getUniformLocation("u_color");
-    if (m_u_color < 0) {
-        return false;
-    }
-
-    m_u_MVP = m_debugProgram->getUniformLocation("u_MVP");
-    if (m_u_MVP < 0) {
-        return false;
-    }
-
     m_debugVbo = std::make_shared<VertexBuffer<glm::vec3>>("#debugVBO");
 
-    glPointSize(8);
-    glLineWidth(4);
+    glPointSize(6);
+    glLineWidth(1);
 
     glEnable(GL_BLEND);
 
@@ -300,10 +290,9 @@ void ViewerApp::step()
     if (renderTriangles) {
         std::vector<Triangle> debugTriangles = m_samples[m_sampleCurrent]->getTriangles();
         m_debugProgram->bind();
-        m_debugProgram->setUniform(m_u_MVP, mvp);
-        m_debugProgram->setUniform(m_u_color, m_vertexColor);
+        m_debugProgram->setMVP(mvp);
+        m_debugProgram->setColor(m_lineColor);
         m_debugVbo->bind(m_debugProgram);
-        m_debugProgram->setUniform(m_u_color, m_lineColor);
         for (size_t i = 0; i < debugTriangles.size(); ++i) {
             m_debugVbo->upload(debugTriangles[i].points, VertexBuffer<glm::vec3>::Stream);
             glDrawArrays(GL_LINE_LOOP, 0, debugTriangles[i].points.size());
@@ -317,10 +306,9 @@ void ViewerApp::step()
         if (debugVertices.size() > 0) {
             m_debugVbo->upload(debugVertices, VertexBuffer<glm::vec3>::Stream);
             m_debugProgram->bind();
-            m_debugProgram->setUniform(m_u_MVP, mvp);
-            m_debugProgram->setUniform(m_u_color, m_vertexColor);
+            m_debugProgram->setMVP(mvp);
+            m_debugProgram->setColor(m_vertexColor);
             m_debugVbo->bind(m_debugProgram);
-            m_debugProgram->setUniform(m_u_color, m_vertexColor);
             glDrawArrays(GL_POINTS, 0, (GLsizei)debugVertices.size());
             m_debugVbo->unbind();
             m_debugProgram->unbind();
