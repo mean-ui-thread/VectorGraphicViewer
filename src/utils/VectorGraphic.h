@@ -7,8 +7,10 @@
 #include <vector>
 
 #include <glm/vec2.hpp>
+#include <glm/gtx/color_space.hpp>
 
 #include "BitMask.h"
+#include "Color.h"
 #include "VertexData.h"
 
 enum class LineCap : uint8_t
@@ -58,7 +60,7 @@ struct SubPath2D
 };
 
 struct Mesh {
-    std::vector<PositionVertex> vertices;
+    std::vector<ColorVertex> vertices;
     std::vector<uint16_t> indices;
 };
 
@@ -67,7 +69,7 @@ public:
 
     friend class VectorGraphic;
 
-    void reset();
+    void beginPath();
     void closePath();
     void moveTo(float x, float y);
     void lineTo(float x, float y);
@@ -78,8 +80,16 @@ public:
     void ellipse(float x, float y, float radiusX, float radiusY, float rotation, float startAngle, float endAngle, bool anticlockwise = false);
     void rect(float x, float y, float width, float height);
 
-    std::vector<Mesh> fill();
-    std::vector<Mesh> stroke(float lineWidth = 1.0f, LineJoin lineJoin = LineJoin::miter, LineCap lineCap = LineCap::butt, float miterLimit = 10.0f);
+    void fill(Mesh &mesh);
+    void fillRect(Mesh &mesh, float x, float y, float width, float height);
+    void stroke(Mesh &mesh);
+
+    Color fillStyle = Black;
+    Color strokeStyle = Black;
+    float lineWidth = 1.0f;
+    LineJoin lineJoin = LineJoin::miter;
+    LineCap lineCap = LineCap::butt;
+    float miterLimit = 10.0f;
 
 private:
 

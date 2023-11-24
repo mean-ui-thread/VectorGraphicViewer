@@ -32,6 +32,8 @@ add_executable(${PROJECT_NAME} WIN32
     utils/AbstractSample.h
     utils/AttributeInfo.h
     utils/BitMask.h
+    utils/Color.cpp
+    utils/Color.h
     utils/CPUUsage.cpp
     utils/CPUUsage.h
     utils/IndexBuffer.cpp
@@ -87,6 +89,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL Emscripten)
         assets/color_100_es.vert
         assets/tex_100_es.frag
         assets/tex_100_es.vert
+        assets/vcolor_100_es.frag
+        assets/vcolor_100_es.vert
     )
 else()
     copy_asset(${PROJECT_NAME}
@@ -94,6 +98,8 @@ else()
         assets/color_330_core.vert
         assets/tex_330_core.frag
         assets/tex_330_core.vert
+        assets/vcolor_330_core.frag
+        assets/vcolor_330_core.vert
     )
 endif()
 

@@ -23,9 +23,9 @@ public:
     virtual std::vector<Triangle> getTriangles() const override;
 
 private:
-    std::vector<Mesh> meshes;
+    Mesh mesh;
     std::shared_ptr<ShaderProgram> program;
-    std::shared_ptr<VertexBuffer<PositionVertex>> vbo;
+    std::shared_ptr<VertexBuffer<ColorVertex>> vbo;
     std::shared_ptr<IndexBuffer> ibo;
 };
 

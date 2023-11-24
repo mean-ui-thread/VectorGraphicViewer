@@ -43,7 +43,7 @@ struct VertexBuffer : public AbstractGPUObject
         {
             const AttributeInfo &attribute = program->attribute(i);
             size_t offset = program->attributeOffset(i);
-            glVertexAttribPointer(attributeLocations[i], attribute.count, attribute.type, GL_FALSE, program->vertexSize(),  reinterpret_cast<const GLvoid*>(offset));
+            glVertexAttribPointer(attributeLocations[i], attribute.count, attribute.type, attribute.action, program->vertexSize(),  reinterpret_cast<const GLvoid*>(offset));
         }
 
     }

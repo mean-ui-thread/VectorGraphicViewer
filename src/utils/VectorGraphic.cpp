@@ -340,8 +340,8 @@ namespace detail
     }
 }
 
-void Path2D::reset() {
-    subPaths.resize(0);
+void Path2D::beginPath() {
+    subPaths.clear();
 }
 
 void Path2D::closePath() {
@@ -406,9 +406,7 @@ void Path2D::rect(float x, float y, float width, float height) {
     subPath.closed = true;
 }
 
-std::vector<Mesh> Path2D::fill() {
-
-    std::vector<Mesh> result;
+void Path2D::fill(Mesh &mesh) {
 
     // close circular paths.
     for (size_t id = 0; id < subPaths.size(); ++id) {
@@ -461,16 +459,12 @@ std::vector<Mesh> Path2D::fill() {
             uint32_t vertexCount = polyContext.PointPoolCount;
             uint16_t indexCount = polyContext.TriangleCount*3;
 
-            result.resize(result.size() + 1);
-            Mesh &mesh = result.back();
-
-            mesh.vertices.reserve(vertexCount);
-            mesh.indices.reserve(indexCount);
+            uint16_t offset = mesh.vertices.size();
 
             // populate the vertices
             for (size_t vid = 0; vid < polyContext.PointPoolCount; ++vid) {
                 MPEPolyPoint &point = polyContext.PointsPool[vid];
-                mesh.vertices.push_back({{point.X, point.Y, 0.0f}});
+                mesh.vertices.push_back({{point.X, point.Y, 0.0f}, fillStyle});
             }
 
             // populate the indices
@@ -481,18 +475,22 @@ std::vector<Mesh> Path2D::fill() {
                 uint16_t p0 = static_cast<uint16_t>(triangle->Points[0] - polyContext.PointsPool);
                 uint16_t p1 = static_cast<uint16_t>(triangle->Points[1] - polyContext.PointsPool);
                 uint16_t p2 = static_cast<uint16_t>(triangle->Points[2] - polyContext.PointsPool);
-                mesh.indices.push_back(p2);
-                mesh.indices.push_back(p1);
-                mesh.indices.push_back(p0);
+                mesh.indices.push_back(offset+p2);
+                mesh.indices.push_back(offset+p1);
+                mesh.indices.push_back(offset+p0);
             }
         }
     }
-
-
-    return result;
+    subPaths.clear();
 }
 
-std::vector<Mesh> Path2D::stroke(float lineWidth, LineJoin lineJoin, LineCap lineCap, float miterLimit) {
+void Path2D::fillRect(Mesh &mesh, float x, float y, float width, float height) {
+    rect(x, y, width, height);
+    fill(mesh);
+    subPaths.clear();
+}
+
+void Path2D::stroke(Mesh &mesh) {
 
     float halfLineWidth = lineWidth * 0.5f;
 
@@ -862,8 +860,6 @@ std::vector<Mesh> Path2D::stroke(float lineWidth, LineJoin lineJoin, LineCap lin
         }
     }
 
-    std::vector<Mesh> result;
-
     for (size_t id = 0; id < subPaths.size(); ++id) {
         auto &outerPoints = subPaths[id].outerPoints;
         auto &innerPoints = subPaths[id].innerPoints;
@@ -915,16 +911,12 @@ std::vector<Mesh> Path2D::stroke(float lineWidth, LineJoin lineJoin, LineCap lin
         uint32_t vertexCount = polyContext.PointPoolCount;
         uint16_t indexCount = polyContext.TriangleCount*3;
 
-        result.resize(result.size() + 1);
-        Mesh &mesh = result.back();
-
-        mesh.vertices.reserve(vertexCount);
-        mesh.indices.reserve(indexCount);
+        uint16_t offset = mesh.vertices.size();
 
         // populate the vertices
         for (size_t vid = 0; vid < polyContext.PointPoolCount; ++vid) {
             MPEPolyPoint &point = polyContext.PointsPool[vid];
-            mesh.vertices.push_back({{point.X, point.Y, 0.0f}});
+            mesh.vertices.push_back({{point.X, point.Y, 0.0f}, strokeStyle});
         }
 
         // populate the indices
@@ -935,15 +927,15 @@ std::vector<Mesh> Path2D::stroke(float lineWidth, LineJoin lineJoin, LineCap lin
             uint16_t p0 = static_cast<uint16_t>(triangle->Points[0] - polyContext.PointsPool);
             uint16_t p1 = static_cast<uint16_t>(triangle->Points[1] - polyContext.PointsPool);
             uint16_t p2 = static_cast<uint16_t>(triangle->Points[2] - polyContext.PointsPool);
-            mesh.indices.push_back(p2);
-            mesh.indices.push_back(p1);
-            mesh.indices.push_back(p0);
+            mesh.indices.push_back(offset+p2);
+            mesh.indices.push_back(offset+p1);
+            mesh.indices.push_back(offset+p0);
         }
 
         
     }
 
-    return result;
+    subPaths.clear();
 }
 
 

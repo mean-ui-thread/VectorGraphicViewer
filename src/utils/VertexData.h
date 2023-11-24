@@ -14,7 +14,7 @@ struct TextureVertex {
 
 struct ColorVertex {
     glm::vec3 position;
-    glm::vec4 color;
+    glm::u8vec4 color;
 };
 
 #endif // VERTEX_DATA_H

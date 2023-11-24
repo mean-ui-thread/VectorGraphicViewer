@@ -18,6 +18,11 @@ struct AttributeInfo {
         Float         = GL_FLOAT
     };
 
+    enum Action {
+        LeaveAsIs = GL_FALSE,
+        Normalize = GL_TRUE
+    };
+
     inline GLint sizeOfType() const {
         switch(type)
         {
@@ -40,6 +45,7 @@ struct AttributeInfo {
     std::string name;
     Type type;
     GLint count;
+    Action action = LeaveAsIs;
 };
 
 #endif // ATTRIBUTEINFO_H

@@ -5,6 +5,9 @@ Little toy engine to help me visually explain vector graphics to my colleagues.
 ## Setup
 
 ```sh
+# Clone with all submodules
+git clone --recursive https://github.com/mean-ui-thread/VectorGraphicViewer.git
+
 # Download build dependencies
 brew install cmake ninja
 
