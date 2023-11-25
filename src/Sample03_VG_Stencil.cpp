@@ -15,6 +15,8 @@
 
 #include <ViewerApp.h>
 
+#include <glm/glm.hpp>
+
 void Sample03_VG_Stencil::resetRenderState() {
 
 }
@@ -40,7 +42,7 @@ void Sample03_VG_Stencil::render(const std::shared_ptr<ViewerApp> &app, const gl
 
 	nvgBeginFrame(vg, app->displayWidth(), app->displayHeight(), app->pxRatio());
     nvgTranslate(vg, app->position.x, app->position.y);
-    nvgRotate(vg, app->rotation.z);
+    nvgRotate(vg, glm::radians(app->rotation.z));
     nvgScale(vg, app->scale.x, app->scale.y);
     draw(app, mvp);
     nvgResetTransform(vg);
