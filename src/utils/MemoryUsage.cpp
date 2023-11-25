@@ -42,6 +42,6 @@ float MemoryUsage::getValueKB() const {
         return -1;
     }
 
-    return taskinfo.resident_size/1024.0f/1024.0f;
+    return taskinfo.virtual_size/1024.0f/1024.0f;
 }
 #endif
