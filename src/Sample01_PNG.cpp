@@ -71,7 +71,7 @@ void Sample01_PNG::teardown() {
     ibo.reset();
 }
 
-void Sample01_PNG::render(const glm::mat4 &mvp)
+void Sample01_PNG::render(const std::shared_ptr<ViewerApp> &app, const glm::mat4 &mvp)
 {
     program->bind();
     program->setTexture0Slot(0);

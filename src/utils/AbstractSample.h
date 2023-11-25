@@ -20,7 +20,7 @@ public:
     virtual bool setup() = 0;
     virtual void resetRenderState() = 0;
     virtual void teardown() = 0;
-    virtual void render(const glm::mat4 &mvp) = 0;
+    virtual void render(const std::shared_ptr<ViewerApp> &app, const glm::mat4 &mvp) = 0;
     virtual void renderUI() = 0;
     virtual std::vector<glm::vec3> getVertices() const = 0;
     virtual std::vector<Triangle> getTriangles() const = 0;

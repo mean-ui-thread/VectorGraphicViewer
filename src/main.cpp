@@ -9,14 +9,16 @@
 
 #include "Sample00_Welcome.h"
 #include "Sample01_PNG.h"
-#include "Sample02_SVG_Trig.h"
+#include "Sample02_VG_Trig.h"
+#include "Sample03_VG_Stencil.h"
 
 #define SAMPLE(NAME) std::make_shared<NAME>(#NAME)
 
 auto app = std::make_shared<ViewerApp>(std::vector<std::shared_ptr<AbstractSample>>({
-    // SAMPLE(Sample00_Welcome),
-    // SAMPLE(Sample01_PNG),
-    SAMPLE(Sample02_SVG_Trig)
+    SAMPLE(Sample00_Welcome),
+    SAMPLE(Sample01_PNG),
+    SAMPLE(Sample02_VG_Trig),
+    SAMPLE(Sample03_VG_Stencil)
 }));
 
 void step() {

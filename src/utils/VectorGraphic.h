@@ -4,6 +4,7 @@
 #include <array>
 #include <cfloat>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include <glm/vec2.hpp>
@@ -31,6 +32,16 @@ enum class FillRule : uint8_t
 {
     nonZero, //! The non-zero winding rule, which is the default rule.
     evenOdd, //! The even-odd winding rule.
+};
+
+enum class Unit : uint8_t
+{
+    px, 
+    pt,
+    pc,
+    mm,
+    cm,
+    in
 };
 
 enum class PointProperties : uint8_t
@@ -64,10 +75,28 @@ struct Mesh {
     std::vector<uint16_t> indices;
 };
 
+inline const char * unitToString(Unit unit) {
+    switch (unit) {
+        case Unit::px: return "px"; 
+        case Unit::pt: return "pt";
+        case Unit::pc: return "pc";
+        case Unit::mm: return "mm";
+        case Unit::cm: return "cm";
+        case Unit::in: return "in";
+        default: return "?";
+    }
+}
+
 class Path2D {
 public:
 
     friend class VectorGraphic;
+
+    static std::vector<Path2D> fromSVGFile(const std::string &filePath, Unit unit, float dpi, float tesselationTolerance);
+    static std::vector<Path2D> fromSVGBuffer(const std::string &buffer, Unit unit, float dpi, float tesselationTolerance);
+
+    Path2D(float tesselationFactor) : tesselationTolerance(1.0f / tesselationFactor) {}
+    Path2D(float tesselationFactor, const std::string &svgData);
 
     void beginPath();
     void closePath();
@@ -87,9 +116,9 @@ public:
     Color fillStyle = Black;
     Color strokeStyle = Black;
     float lineWidth = 1.0f;
+    float miterLimit = 10.0f;
     LineJoin lineJoin = LineJoin::miter;
     LineCap lineCap = LineCap::butt;
-    float miterLimit = 10.0f;
 
 private:
 
@@ -99,6 +128,8 @@ private:
     SubPath2D &createSubPath();
 
     std::vector<SubPath2D> subPaths;
+
+    float tesselationTolerance;
 };
 
 

@@ -11,7 +11,7 @@ bool Sample00_Welcome::setup() {
 void Sample00_Welcome::teardown() {
 
 }
-void Sample00_Welcome::render(const glm::mat4 &) {
+void Sample00_Welcome::render(const std::shared_ptr<ViewerApp> &app, const glm::mat4 &) {
 
 }
 

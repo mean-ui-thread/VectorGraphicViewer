@@ -7,3 +7,9 @@
 [submodule "src/fast-poly2tri"]
 	path = src/fast-poly2tri
 	url = git@github.com:MetricPanda/fast-poly2tri.git
+[submodule "src/nanosvg"]
+	path = src/nanosvg
+	url = git@github.com:memononen/nanosvg.git
+[submodule "src/nanovg"]
+	path = src/nanovg
+	url = git@github.com:memononen/nanovg.git

@@ -16,13 +16,20 @@
 
 static constexpr size_t SAMPLE_COUNT = 300;
 
+static std::weak_ptr<ViewerApp> s_instance;
+
+std::shared_ptr<ViewerApp> ViewerApp::getInstance() {
+    return s_instance.lock();
+}
+
+
 ViewerApp::ViewerApp(std::vector<std::shared_ptr<AbstractSample> > samples): 
     m_samples(samples),
     m_frameStats(SAMPLE_COUNT),
     m_cpuStats(SAMPLE_COUNT),
     m_memStats(SAMPLE_COUNT),
-    m_gpuMemStats(SAMPLE_COUNT),
-    m_trigStats(SAMPLE_COUNT)
+    m_gpuMemStats(SAMPLE_COUNT/2),
+    m_trigStats(SAMPLE_COUNT/2)
 {
     assert(m_samples.size() > 0);
 }
@@ -47,6 +54,8 @@ ViewerApp::~ViewerApp()
 
 bool ViewerApp::setup(const char * title, int32_t width, int32_t height)
 {
+    s_instance = shared_from_this();
+
     //Initialize SDL2
     if(SDL_Init(SDL_INIT_VIDEO) != 0)
     {
@@ -138,13 +147,16 @@ bool ViewerApp::setup(const char * title, int32_t width, int32_t height)
 #ifndef __EMSCRIPTEN__
     //Default Vertex Array Object
     glGenVertexArrays(1, &m_defaultVAO);
-    glBindVertexArray(m_defaultVAO);
 #endif
 
+    int winWidth, winHeight;
+    SDL_GetWindowSize(m_window, &winWidth, &winHeight);
 
     // populate displayWidth and displayHeight before the user's init()
     // so the user can use these variables if needed.
     SDL_GL_GetDrawableSize(m_window, &m_displayWidth, &m_displayHeight);
+
+    m_pxRatio = (float)m_displayWidth / (float)winWidth;
 
     // User Init
     if (!m_samples[m_sampleCurrent]->setup())
@@ -185,14 +197,6 @@ bool ViewerApp::setup(const char * title, int32_t width, int32_t height)
 
     m_debugVbo = std::make_shared<VertexBuffer<glm::vec3>>("#debugVBO");
 
-    glPointSize(6);
-    glLineWidth(1);
-
-    glEnable(GL_BLEND);
-
-    // don't multiply alpha because we are pre-multiplying our textures in Texture.cpp
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
     resetRenderState();
 
     m_isRunning = true;
@@ -227,6 +231,19 @@ void ViewerApp::step()
 
         ImGui_ImplSDL2_ProcessEvent(&e);
     }
+
+#ifndef __EMSCRIPTEN__
+    //Default Vertex Array Object
+    glBindVertexArray(m_defaultVAO);
+#endif
+
+    glPointSize(6);
+    glLineWidth(1);
+
+    glEnable(GL_BLEND);
+
+    // don't multiply alpha because we are pre-multiplying our textures in Texture.cpp
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     SDL_GL_GetDrawableSize(m_window, &m_displayWidth, &m_displayHeight);
     glViewport(0, 0, m_displayWidth, m_displayHeight);
@@ -280,11 +297,11 @@ void ViewerApp::step()
         m_samples[m_sampleCurrent]->teardown();
         m_sampleCurrent = m_sampleRequested;
         m_samples[m_sampleCurrent]->setup();
-        resetRenderState();
+        //resetRenderState();
     }
 
     if (renderSample) {
-        m_samples[m_sampleCurrent]->render(mvp);
+        m_samples[m_sampleCurrent]->render(shared_from_this(), mvp);
     }
 
     if (renderTriangles) {
@@ -452,8 +469,9 @@ void ViewerApp::resetRenderState()
     m_samples[m_sampleCurrent]->resetRenderState();
 }
 
-void ViewerApp::renderPerformanceMonitorUI(double frameTimeSecs)
-{
+void ViewerApp::renderPerformanceMonitorUI(double frameTimeSecs) {
+    char progressBarText[32];
+
     if (ImPlot::BeginPlot("##CPU Performance Scope", ImVec2(-1, 128)))
     {
         static ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels;
@@ -468,7 +486,16 @@ void ViewerApp::renderPerformanceMonitorUI(double frameTimeSecs)
         ImPlot::EndPlot();
     }
 
-    char progressBarText[32];
+    sprintf(progressBarText, "%.1f", m_cpuStats.avg);
+    ImGui::ProgressBar(m_cpuStats.avg / 100.0f, ImVec2(0, 0), progressBarText);
+    ImGui::SameLine();
+    ImGui::Text("CPU (%%)");
+
+    sprintf(progressBarText, "%.1f", m_memStats.avg);
+    ImGui::ProgressBar(m_memStats.avg / 100.0f, ImVec2(0, 0), progressBarText);
+    ImGui::SameLine();
+    ImGui::Text("Mem Usage (MB)");
+
     sprintf(progressBarText, "%d", (int)(std::floor(1000.0f / m_frameStats.avg + 0.5f)));
     ImGui::ProgressBar(1.0f / m_frameStats.avg, ImVec2(0, 0), progressBarText);
     ImGui::SameLine();
@@ -479,11 +506,21 @@ void ViewerApp::renderPerformanceMonitorUI(double frameTimeSecs)
         static ImPlotAxisFlags flags = ImPlotAxisFlags_NoTickLabels;
         ImPlot::SetupAxis(ImAxis_X1, nullptr, ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoSideSwitch);
         ImPlot::SetupAxis(ImAxis_Y1, nullptr, ImPlotAxisFlags_AuxDefault | ImPlotAxisFlags_NoSideSwitch);
-        ImPlot::SetupAxisLimits(ImAxis_X1, frameTimeSecs - 5.0, frameTimeSecs, ImPlotCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_X1, frameTimeSecs - 2.5, frameTimeSecs, ImPlotCond_Always);
         ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 1000);
         ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
         ImPlot::PlotLine("GPU Mem Usage (KB)", &m_gpuMemStats.data[0].x, &m_gpuMemStats.data[0].y, m_gpuMemStats.data.size(), ImPlotLineFlags_None, m_gpuMemStats.offset, sizeof(glm::vec2));
         ImPlot::PlotLine("Triangle Count", &m_trigStats.data[0].x, &m_trigStats.data[0].y, m_trigStats.data.size(), ImPlotLineFlags_None, m_trigStats.offset, sizeof(glm::vec2));
         ImPlot::EndPlot();
     }
+
+    sprintf(progressBarText, "%d", (int)(m_gpuMemStats.avg));
+    ImGui::ProgressBar(m_gpuMemStats.avg / 1000.0f, ImVec2(0, 0), progressBarText);
+    ImGui::SameLine();
+    ImGui::Text("GPU Mem (KB)");
+
+    sprintf(progressBarText, "%d", (int)(m_trigStats.avg));
+    ImGui::ProgressBar(m_trigStats.avg / 1000.0f, ImVec2(0, 0), progressBarText);
+    ImGui::SameLine();
+    ImGui::Text("Triangles");
 }

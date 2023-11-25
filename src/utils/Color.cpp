@@ -236,6 +236,15 @@ Color::Color(const char* colorName)
             a = 255;
             return;
         }
+
+        // none means 'Transparent'
+        if (strcasecmp(colorName, "none") == 0) { 
+            r=0;
+            g=0;
+            b=0;
+            a=0;
+            return;
+        }
     }
 
     #define RETURN_IF_MATCH(COLOR_NAME) do { if(strcasecmp(colorName, #COLOR_NAME) == 0) { r=COLOR_NAME.r; g=COLOR_NAME.g; b=COLOR_NAME.b; a=COLOR_NAME.a;  return; } } while((void)0, 0)

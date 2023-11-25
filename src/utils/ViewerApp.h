@@ -23,6 +23,9 @@ class AbstractSample;
 class ViewerApp : public std::enable_shared_from_this<ViewerApp>
 {
 public:
+
+    static std::shared_ptr<ViewerApp> getInstance();
+
     ViewerApp(std::vector<std::shared_ptr<AbstractSample> > samples);
     ~ViewerApp();
 
@@ -52,10 +55,19 @@ public:
         return m_displayHeight;
     }
 
+    inline float pxRatio() const
+    {
+        return m_pxRatio;
+    }
+
     inline double getTimeSecs() const {
         return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - launchTime).count() / 1000000000.0;
     }
 
+    glm::vec3 position;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+    
 private:
 
     std::shared_ptr<ShaderProgram> m_debugProgram;
@@ -65,6 +77,7 @@ private:
     bool m_verticalSyncRequested = true;
     int32_t m_displayWidth = 0;
     int32_t m_displayHeight = 0;
+    float m_pxRatio = 0.0f;
     const glm::vec4 m_clearColor = glm::vec4(0.45f, 0.55f, 0.60f, 1.00f);
     const glm::vec4 m_vertexColor = glm::vec4(1.0f, 0.0f, 0.5f, 1.0f);
     const glm::vec4 m_lineColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -92,9 +105,7 @@ private:
 
     // render states:
 
-    glm::vec3 position;
-    glm::vec3 rotation;
-    glm::vec3 scale;
+
 
     bool renderSample;
     bool renderTriangles;

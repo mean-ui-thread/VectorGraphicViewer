@@ -9,6 +9,7 @@ class Color : public glm::u8vec4
 {
 public:
     Color() : glm::u8vec4() {}
+    Color(uint32_t rgba) : glm::u8vec4((rgba >> 0) & 0xff, (rgba >> 8) & 0xff, (rgba >> 16) & 0xff, (rgba >> 24) & 0xff) {} // WARNING: Only works for low endian CPU (armv8a, x86-64, etc)
     Color(uint8_t r, uint8_t g, uint8_t b, float a = 1.0f) : glm::u8vec4(r, g, b, a*255) {}
     Color(const char* colorName);
 };

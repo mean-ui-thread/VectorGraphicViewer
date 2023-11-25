@@ -10,10 +10,14 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL Emscripten)
 
     hunter_add_package(SDL_image)
     find_package(SDL_image CONFIG REQUIRED)
+
 endif()
 
 hunter_add_package(glm)
 find_package(glm REQUIRED)
+
+hunter_add_package(RapidXML)
+find_package(RapidXML REQUIRED CONFIG)
 
 add_executable(${PROJECT_NAME} WIN32
 
@@ -22,8 +26,10 @@ add_executable(${PROJECT_NAME} WIN32
     Sample00_Welcome.h
     Sample01_PNG.cpp
     Sample01_PNG.h
-    Sample02_SVG_Trig.cpp
-    Sample02_SVG_Trig.h
+    Sample02_VG_Trig.cpp
+    Sample02_VG_Trig.h
+    Sample03_VG_Stencil.cpp
+    Sample03_VG_Stencil.h
 
 
     # utilities
@@ -78,10 +84,23 @@ add_executable(${PROJECT_NAME} WIN32
     implot/implot_items.cpp
     implot/implot.cpp
     implot/implot.h
+    nanosvg/src/nanosvg.h
+    nanovg/src/fontstash.h
+    nanovg/src/nanovg_gl_utils.h
+    nanovg/src/nanovg_gl.h
+    nanovg/src/nanovg.c
+    nanovg/src/nanovg.h
+    nanovg/src/stb_image.h
+    nanovg/src/stb_truetype.h
+
 
 )
 
-copy_asset(${PROJECT_NAME} assets/android.png)
+copy_asset(${PROJECT_NAME} 
+    assets/android.png
+    assets/android.svg
+    assets/Ghostscript_Tiger.svg
+)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Emscripten)
     copy_asset(${PROJECT_NAME}
@@ -121,6 +140,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends
     ${CMAKE_CURRENT_SOURCE_DIR}/implot
+    ${CMAKE_CURRENT_SOURCE_DIR}/nanosvg/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/nanovg/src
     ${CMAKE_CURRENT_SOURCE_DIR}/utils
 )
 
@@ -149,4 +170,7 @@ else()
     )
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glm)
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    glm
+    RapidXML::RapidXML
+)

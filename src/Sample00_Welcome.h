@@ -16,7 +16,7 @@ public:
     virtual void resetRenderState() override;
     virtual bool setup() override;
     virtual void teardown() override;
-    virtual void render(const glm::mat4 &mvp) override;
+    virtual void render(const std::shared_ptr<ViewerApp> &app, const glm::mat4 &mvp) override;
     virtual void renderUI() override;
     virtual std::vector<glm::vec3> getVertices() const override;
     virtual std::vector<Triangle> getTriangles() const override;
